@@ -41,10 +41,34 @@ $orgId = $meta.orgId
 $projectId = $meta.projectId
 
 if (-not $VercelToken) {
+  Write-Host "Reading Vercel token from local CLI keyring..." -ForegroundColor Cyan
+  $nodeScript = @"
+const { readCliAuthConfig } = require(process.env.VERCEL_CLI_AUTH_MODULE);
+const { getGlobalPathConfig } = require(process.env.VERCEL_CLI_CONFIG_MODULE);
+const auth = readCliAuthConfig(getGlobalPathConfig());
+if (!auth?.token) process.exit(2);
+process.stdout.write(auth.token);
+"@
+  $vercelRoot = (npm root -g 2>$null) + "\vercel\node_modules"
+  if (-not (Test-Path $vercelRoot)) {
+    $vercelRoot = "$env:APPDATA\npm\node_modules\vercel\node_modules"
+  }
+  $env:VERCEL_CLI_AUTH_MODULE = Join-Path $vercelRoot "@vercel\cli-auth\credentials-store.js"
+  $env:VERCEL_CLI_CONFIG_MODULE = Join-Path $vercelRoot "@vercel\cli-config\dist\index.js"
+  try {
+    $VercelToken = node -e $nodeScript 2>$null
+  } catch {
+    $VercelToken = $null
+  }
+  Remove-Item Env:VERCEL_CLI_AUTH_MODULE -ErrorAction SilentlyContinue
+  Remove-Item Env:VERCEL_CLI_CONFIG_MODULE -ErrorAction SilentlyContinue
+}
+
+if (-not $VercelToken) {
   Write-Host "Paste your Vercel token (https://vercel.com/account/tokens):" -ForegroundColor Yellow
-  $VercelToken = Read-Host -AsSecureString
+  $secure = Read-Host -AsSecureString
   $VercelToken = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
-    [Runtime.InteropServices.Marshal]::SecureStringToBSTR($VercelToken)
+    [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
   )
 }
 

@@ -1,5 +1,5 @@
-{
-  "cli": { "version": "1.200.0" },
-  "project_id": "qkprwuvpwdggruzdrpyl",
-  "db": { "major_version": 15 }
-}
+# Local Supabase CLI config (see supabase/.project-ref for remote project ref)
+project_id = "sih2026"
+
+[db]
+major_version = 15
