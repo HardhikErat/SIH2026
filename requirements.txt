@@ -1,2 +1,0 @@
-# Vercel Python deps (serverless function bundle)
--r api/requirements.txt
