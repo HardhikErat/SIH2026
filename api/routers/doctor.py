@@ -1,0 +1,157 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from typing import Any
+
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
+
+from auth.supabase_auth import create_patient_token, require_staff
+from core.errors import ApiException
+from core.schema import IntakeStatus
+from db.supabase_client import get_store
+from core.config import settings
+
+router = APIRouter()
+
+# 06_API §5 / 12_Safety §1.2 — structurally the only writer of DOCTOR_VERIFIED.
+VERIFY_ENDPOINT_MARK = "POST /doctor/intake/{id}/verify"
+
+
+class LoginBody(BaseModel):
+    email: str
+    password: str
+
+
+class IntakePatch(BaseModel):
+    fields: dict[str, Any]
+
+
+class VerifyBody(BaseModel):
+    acknowledge_high_priority: bool = False
+
+
+@router.post("/doctor/login")
+def doctor_login(body: LoginBody) -> dict:
+    store = get_store()
+    user = store.authenticate_staff(body.email, body.password)
+    if not user:
+        raise ApiException(401, "AUTH_FAILED", "Email or password is not recognised.")
+    # Mint a staff JWT using the same signer as patient tokens (demo / CI).
+    # Production should use Supabase Auth OTP and verify the JWT in middleware.
+    from jose import jwt
+
+    now = datetime.now(timezone.utc)
+    token = jwt.encode(
+        {
+            "sub": user["id"],
+            "email": user["email"],
+            "role": user["role"],
+            "app_metadata": {"role": user["role"]},
+            "camp_id": user.get("camp_id"),
+            "iat": int(now.timestamp()),
+            "exp": int(now.timestamp()) + 8 * 3600,
+        },
+        settings.session_secret,
+        algorithm="HS256",
+    )
+    return {"token": token, "role": user["role"], "user_id": user["id"], "camp_id": user.get("camp_id")}
+
+
+@router.get("/doctor/queue")
+def doctor_queue(principal: dict = Depends(require_staff)) -> dict:
+    store = get_store()
+    camp_id = principal.get("camp_id")
+    items = store.list_queue(camp_id)
+    queue = []
+    now = datetime.now(timezone.utc)
+    for item in items:
+        patient = item.get("patient") or {}
+        created = item.get("created_at")
+        wait = None
+        if created:
+            try:
+                wait = int((now - datetime.fromisoformat(created.replace("Z", "+00:00"))).total_seconds())
+            except ValueError:
+                wait = None
+        queue.append(
+            {
+                "intake_id": item["id"],
+                "patient_id": item.get("patient_id"),
+                "display_name": patient.get("display_name") or "Patient",
+                "priority_flag": item.get("priority_flag"),
+                "chief_complaint": item.get("chief_complaint"),
+                "wait_seconds": wait,
+                "status": item.get("status"),
+                "source": "AI_GENERATED",
+            }
+        )
+    next_patient = queue[0] if queue else None
+    return {"queue": queue, "next_patient": next_patient}
+
+
+@router.get("/doctor/intake/{intake_id}")
+def doctor_intake(intake_id: str, principal: dict = Depends(require_staff)) -> dict:
+    store = get_store()
+    intake = store.get_intake(intake_id)
+    if not intake:
+        raise ApiException(404, "INTAKE_NOT_FOUND", "Intake does not exist.")
+    audit = store.list_audit(intake_id)
+    return {
+        **intake,
+        "audit_log": audit,
+        "source_tag": "AI_GENERATED" if intake.get("status") == IntakeStatus.AI_GENERATED.value else "DOCTOR_VERIFIED",
+    }
+
+
+@router.patch("/doctor/intake/{intake_id}")
+def patch_intake(intake_id: str, body: IntakePatch, principal: dict = Depends(require_staff)) -> dict:
+    store = get_store()
+    intake = store.get_intake(intake_id)
+    if not intake:
+        raise ApiException(404, "INTAKE_NOT_FOUND", "Intake does not exist.")
+    if intake.get("status") == IntakeStatus.DOCTOR_VERIFIED.value:
+        raise ApiException(409, "ALREADY_VERIFIED", "Verified intakes are not edited on this path.")
+    # Refuse status transitions here — verify is the only gate.
+    if "status" in body.fields:
+        raise ApiException(
+            403,
+            "VERIFY_GATE",
+            f"Only {VERIFY_ENDPOINT_MARK} may change intake status to DOCTOR_VERIFIED.",
+        )
+    structured = dict(intake.get("structured_fields") or {})
+    changed_by = principal.get("sub") or "doctor"
+    for field, new_value in body.fields.items():
+        old = structured.get(field, intake.get(field))
+        if old == new_value:
+            continue
+        store.append_audit(intake_id, field, old, new_value, changed_by)
+        structured[field] = new_value
+        if field in intake:
+            intake[field] = new_value
+    intake["structured_fields"] = structured
+    store.save_intake(intake)
+    return {"intake_id": intake_id, "fields": structured, "status": intake["status"]}
+
+
+@router.post("/doctor/intake/{intake_id}/verify")
+def verify_intake(intake_id: str, body: VerifyBody, principal: dict = Depends(require_staff)) -> dict:
+    store = get_store()
+    intake = store.get_intake(intake_id)
+    if not intake:
+        raise ApiException(404, "INTAKE_NOT_FOUND", "Intake does not exist.")
+    if intake.get("status") == IntakeStatus.DOCTOR_VERIFIED.value:
+        return {"intake_id": intake_id, "status": intake["status"], "already": True}
+    if intake.get("priority_flag") == "HIGH" and not body.acknowledge_high_priority:
+        raise ApiException(
+            409,
+            "HIGH_PRIORITY_UNACKNOWLEDGED",
+            "HIGH priority flag must be acknowledged before Verify & Save.",
+        )
+    old = intake.get("status")
+    intake["status"] = IntakeStatus.DOCTOR_VERIFIED.value
+    intake["doctor_id"] = principal.get("sub")
+    intake["verified_at"] = datetime.now(timezone.utc).isoformat()
+    store.append_audit(intake_id, "status", old, intake["status"], principal.get("sub") or "doctor")
+    store.save_intake(intake)
+    return {"intake_id": intake_id, "status": intake["status"], "verified_at": intake["verified_at"]}

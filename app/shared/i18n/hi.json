@@ -1,0 +1,21 @@
+{
+  "start": "बोलकर शुरू करें",
+  "moreLanguages": "और भाषाएँ",
+  "listen": "सुनें",
+  "typeInstead": "लिखकर बताएँ",
+  "submit": "भेजें",
+  "goBack": "वापस जाकर सुधारें",
+  "yesSubmit": "हाँ, भेजें",
+  "waitDoctor": "कृपया प्रतीक्षा करें, डॉक्टर आपको बुलाएँगे",
+  "consentAudio": "पहचान सुधारने के लिए आवाज़ सहेजें (वैकल्पिक)",
+  "verifySave": "Verify & Save",
+  "nextPatient": "अगला मरीज़",
+  "login": "लॉग इन",
+  "queue": "प्रतीक्षा सूची",
+  "aiSuggested": "AI-suggested",
+  "verified": "Verified",
+  "notAnswered": "अभी उत्तर नहीं",
+  "retrying": "सर्वर नहीं मिला। आपके उत्तर सुरक्षित हैं — फिर कोशिश हो रही है।",
+  "betaAccuracy": "बीटा सटीकता",
+  "experimental": "पहले लिखें, आवाज़ प्रयोगात्मक"
+}

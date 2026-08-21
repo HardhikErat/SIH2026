@@ -1,0 +1,21 @@
+{
+  "start": "बोलून सुरू करा",
+  "moreLanguages": "आणखी भाषा",
+  "listen": "ऐका",
+  "typeInstead": "लिहून सांगा",
+  "submit": "पाठवा",
+  "goBack": "मागे जाऊन दुरुस्त करा",
+  "yesSubmit": "होय, पाठवा",
+  "waitDoctor": "कृपया थांबा, डॉक्टर तुम्हाला बोलावतील",
+  "consentAudio": "ओळख सुधारण्यासाठी आवाज साठवा (पर्यायी)",
+  "verifySave": "Verify & Save",
+  "nextPatient": "पुढील रुग्ण",
+  "login": "लॉग इन",
+  "queue": "प्रतीक्षा यादी",
+  "aiSuggested": "AI-suggested",
+  "verified": "Verified",
+  "notAnswered": "अद्याप उत्तर नाही",
+  "retrying": "सर्व्हर मिळाला नाही. तुमची उत्तरे सुरक्षित आहेत — पुन्हा प्रयत्न.",
+  "betaAccuracy": "बीटा अचूकता",
+  "experimental": "आधी मजकूर, आवाज प्रायोगिक"
+}

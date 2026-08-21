@@ -1,0 +1,37 @@
+[
+  {
+    "id": "fever_hi_dialect",
+    "language": "hi",
+    "utterances": ["mujhe 3 days se bukhar hai"],
+    "expect": {
+      "chief_complaint": "SYM_FEVER",
+      "missing_contains": ["allergies"]
+    }
+  },
+  {
+    "id": "chest_breathing_high",
+    "language": "en",
+    "utterances": ["I have chest pain and cannot breathe"],
+    "expect": {
+      "chief_complaint": "SYM_CHEST_PAIN",
+      "priority": "HIGH"
+    }
+  },
+  {
+    "id": "contradiction_meds",
+    "language": "en",
+    "utterances": ["I take no medicines", "I took my BP tablet this morning"],
+    "expect": {
+      "has_contradiction": true
+    }
+  },
+  {
+    "id": "unknown_not_no",
+    "language": "en",
+    "utterances": ["I have headache", "I don't know about allergies"],
+    "expect": {
+      "chief_complaint": "SYM_HEADACHE",
+      "missing_contains": ["allergies"]
+    }
+  }
+]

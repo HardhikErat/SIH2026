@@ -1,0 +1,21 @@
+{
+  "start": "Speak to start",
+  "moreLanguages": "More languages",
+  "listen": "Listen",
+  "typeInstead": "Type instead",
+  "submit": "Submit",
+  "goBack": "Go Back and Correct",
+  "yesSubmit": "Yes, Submit",
+  "waitDoctor": "Please wait, the doctor will call you",
+  "consentAudio": "Store my voice to improve recognition (optional)",
+  "verifySave": "Verify & Save",
+  "nextPatient": "Next Patient",
+  "login": "Log in",
+  "queue": "Waiting patients",
+  "aiSuggested": "AI-suggested",
+  "verified": "Verified",
+  "notAnswered": "Not answered yet",
+  "retrying": "Couldn't reach the server. Your answers are saved — retrying automatically.",
+  "betaAccuracy": "Beta accuracy",
+  "experimental": "Text-first, voice experimental"
+}
