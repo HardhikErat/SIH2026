@@ -29,7 +29,10 @@ class Settings(BaseSettings):
 
     @property
     def cors_list(self) -> list[str]:
-        return [o.strip() for o in self.api_cors_origins.split(",") if o.strip()]
+        raw = self.api_cors_origins.strip()
+        if raw == "*":
+            return ["*"]
+        return [o.strip() for o in raw.split(",") if o.strip()]
 
     @property
     def use_supabase(self) -> bool:
