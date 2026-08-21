@@ -13,7 +13,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install -r api/requirements-dev.txt
-      - run: pytest api
+      - run: pytest --cov=core --cov=routers --cov-fail-under=75
+        working-directory: api
       - uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}

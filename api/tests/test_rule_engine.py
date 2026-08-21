@@ -1,4 +1,3 @@
-from core.schema import CollectedFields, TurnRecord
 from core.rule_engine import (
     conflict_rule,
     detect_contradictions,
@@ -6,7 +5,7 @@ from core.rule_engine import (
     evaluate_priority,
     run_rule_engine,
 )
-from core.schema import PriorityFlag
+from core.schema import CollectedFields, PriorityFlag, TurnRecord
 
 
 def test_missing_fever_checklist():

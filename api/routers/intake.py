@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -83,7 +83,10 @@ def confirm_intake(session_id: str, body: ConfirmBody, principal: dict = Depends
             "medications": fields.medications,
             "allergies": fields.allergies,
             "missing_information": rules.missing_fields,
-            "contradictions": [c.model_dump() for c in rules.contradictions] + list(session.get("contradictions") or []),
+            "contradictions": (
+                [c.model_dump() for c in rules.contradictions]
+                + list(session.get("contradictions") or [])
+            ),
             "priority_flag": rules.priority_flag.value,
             "ai_summary": ai_summary,
             "status": IntakeStatus.AI_GENERATED.value,
@@ -91,14 +94,14 @@ def confirm_intake(session_id: str, body: ConfirmBody, principal: dict = Depends
         }
     )
     session["status"] = SessionStatus.SUBMITTED.value
-    session["submitted_at"] = datetime.now(timezone.utc).isoformat()
+    session["submitted_at"] = datetime.now(UTC).isoformat()
     store.save_session(session)
     started = session.get("started_at") or session.get("created_at")
     duration = None
     if started:
         try:
             start_dt = datetime.fromisoformat(started.replace("Z", "+00:00"))
-            duration = (datetime.now(timezone.utc) - start_dt).total_seconds()
+            duration = (datetime.now(UTC) - start_dt).total_seconds()
         except ValueError:
             duration = None
     store.upsert_session_metrics(

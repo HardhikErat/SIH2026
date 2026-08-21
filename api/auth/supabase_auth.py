@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any, Literal
 
 from fastapi import Depends, Header, HTTPException
@@ -14,7 +14,7 @@ Role = Literal["patient", "doctor", "admin"]
 
 
 def create_patient_token(session_id: str, patient_id: str) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": patient_id,
         "sid": session_id,

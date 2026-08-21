@@ -2,8 +2,6 @@
 
 from fastapi.testclient import TestClient
 
-from db.memory_store import MemoryStore
-from db import supabase_client
 from main import app
 
 client = TestClient(app)

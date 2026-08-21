@@ -1,7 +1,7 @@
 """Golden regression suite — 14_AI_NLP_Architecture §8. Runs in CI before model/prompt changes."""
 
-from pathlib import Path
 import json
+from pathlib import Path
 
 from core.llm_gateway import KeywordStubProvider, LLMGateway
 from core.normalization import normalize_fields

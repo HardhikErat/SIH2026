@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from auth.supabase_auth import create_patient_token, require_staff
+from auth.supabase_auth import require_staff
+from core.config import settings
 from core.errors import ApiException
 from core.schema import IntakeStatus
 from db.supabase_client import get_store
-from core.config import settings
 
 router = APIRouter()
 
@@ -41,7 +41,7 @@ def doctor_login(body: LoginBody) -> dict:
     # Production should use Supabase Auth OTP and verify the JWT in middleware.
     from jose import jwt
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     token = jwt.encode(
         {
             "sub": user["id"],
@@ -64,7 +64,7 @@ def doctor_queue(principal: dict = Depends(require_staff)) -> dict:
     camp_id = principal.get("camp_id")
     items = store.list_queue(camp_id)
     queue = []
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     for item in items:
         patient = item.get("patient") or {}
         created = item.get("created_at")
@@ -151,7 +151,7 @@ def verify_intake(intake_id: str, body: VerifyBody, principal: dict = Depends(re
     old = intake.get("status")
     intake["status"] = IntakeStatus.DOCTOR_VERIFIED.value
     intake["doctor_id"] = principal.get("sub")
-    intake["verified_at"] = datetime.now(timezone.utc).isoformat()
+    intake["verified_at"] = datetime.now(UTC).isoformat()
     store.append_audit(intake_id, "status", old, intake["status"], principal.get("sub") or "doctor")
     store.save_intake(intake)
     return {"intake_id": intake_id, "status": intake["status"], "verified_at": intake["verified_at"]}

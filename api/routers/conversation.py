@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import Any, Literal
 from uuid import uuid4
 
@@ -104,7 +103,11 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
             )
         utterance = (asr.get("text") or "").strip()
         if not utterance:
-            raise ApiException(422, "EMPTY_TRANSCRIPT", "I didn't catch that clearly — can you repeat, or type instead?")
+            raise ApiException(
+                422,
+                "EMPTY_TRANSCRIPT",
+                "I didn't catch that clearly — can you repeat, or type instead?",
+            )
 
     if not utterance:
         raise ApiException(400, "EMPTY_CONTENT", "Type or speak an answer to continue.")
@@ -197,7 +200,8 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
 def _chips(fields: CollectedFields) -> list[dict[str, str]]:
     chips: list[dict[str, str]] = []
     if fields.chief_complaint:
-        chips.append({"label": fields.chief_complaint.replace("SYM_", "").replace("_", " ").title(), "field": "chief_complaint"})
+        label = fields.chief_complaint.replace("SYM_", "").replace("_", " ").title()
+        chips.append({"label": label, "field": "chief_complaint"})
     if fields.duration and fields.duration != "unknown":
         chips.append({"label": str(fields.duration), "field": "duration"})
     if fields.severity != "unknown":

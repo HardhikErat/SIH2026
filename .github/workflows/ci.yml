@@ -48,4 +48,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
-      - run: supabase db lint --local || supabase db start && supabase db lint
+      - name: Lint migrations against local stack
+        run: |
+          supabase start -x edge-runtime,studio,imgproxy,mailpit,vector,logflare
+          supabase db reset --no-seed
+          supabase db lint

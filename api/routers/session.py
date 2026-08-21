@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
+from fastapi import APIRouter
+from pydantic import BaseModel
 
 from auth.supabase_auth import create_patient_token
 from core.languages import LANGUAGES, get_language
@@ -60,7 +60,7 @@ def start_session(body: StartSessionBody) -> dict:
     session["language"] = body.language
     session["dialect_hint"] = body.dialect_hint
     session["audio_consent"] = body.audio_consent
-    session["started_at"] = datetime.now(timezone.utc).isoformat()
+    session["started_at"] = datetime.now(UTC).isoformat()
     store.save_session(session)
     token = create_patient_token(session["id"], patient["id"])
     greeting = {

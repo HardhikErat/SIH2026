@@ -9,6 +9,23 @@ from supabase import create_client
 from core.config import settings
 from core.schema import IntakeStatus, SessionStatus
 
+SESSION_COLUMNS = {
+    "patient_id",
+    "status",
+    "collected_fields",
+    "turn_history",
+    "pending_questions",
+    "question_count",
+    "missing_fields",
+    "contradictions",
+    "priority_flag",
+    "language",
+    "dialect_hint",
+    "model_version",
+    "audio_consent",
+    "updated_at",
+}
+
 
 class SupabaseStore:
     def __init__(self) -> None:
@@ -51,9 +68,10 @@ class SupabaseStore:
         }
         res = self.client.table("sessions").insert(payload).execute()
         row = res.data[0]
-        row["camp_id"] = camp_id
-        row["question_count"] = 0
-        row["language"] = "en"
+        row["question_count"] = row.get("question_count") or 0
+        row["language"] = row.get("language") or "en"
+        if camp_id:
+            row["camp_id"] = camp_id
         return row
 
     def get_session(self, session_id: str) -> dict | None:
@@ -62,7 +80,11 @@ class SupabaseStore:
 
     def save_session(self, session: dict) -> dict:
         sid = session["id"]
-        payload = {k: v for k, v in session.items() if k != "id"}
+        payload = {
+            k: v
+            for k, v in session.items()
+            if k != "id" and k in SESSION_COLUMNS and v is not None
+        }
         res = self.client.table("sessions").update(payload).eq("id", sid).execute()
         return res.data[0] if res.data else session
 

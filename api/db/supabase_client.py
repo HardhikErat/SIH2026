@@ -1,5 +1,5 @@
-from db.memory_store import store as memory_store
 from core.config import settings
+from db.memory_store import store as memory_store
 
 
 def get_store():
