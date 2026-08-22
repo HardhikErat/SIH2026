@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from core.schema import CollectedFields, Question
+from core.schema import CollectedFields, ConsultationPhase, Question
 
 MAX_QUESTIONS = 10
 
@@ -18,6 +18,46 @@ GENERIC_FOLLOWUP = Question(
     },
     priority_order=999,
 )
+
+# Basic details questions — asked before any medical questions.
+BASIC_DETAILS_QUESTIONS: list[Question] = [
+    Question(
+        id="Q_NAME",
+        complaint_category="*",
+        field="display_name",
+        question_text_key="ask_name",
+        question_text={
+            "en": "What is your name?",
+            "hi": "आपका नाम क्या है?",
+            "mr": "तुमचे नाव काय आहे?",
+        },
+        priority_order=0,
+    ),
+    Question(
+        id="Q_AGE",
+        complaint_category="*",
+        field="age",
+        question_text_key="ask_age",
+        question_text={
+            "en": "How old are you?",
+            "hi": "आपकी उम्र क्या है?",
+            "mr": "तुमचे वय किती आहे?",
+        },
+        priority_order=1,
+    ),
+    Question(
+        id="Q_GENDER",
+        complaint_category="*",
+        field="gender",
+        question_text_key="ask_gender",
+        question_text={
+            "en": "What is your gender? (Male / Female / Other)",
+            "hi": "आपका लिंग क्या है? (पुरुष / महिला / अन्य)",
+            "mr": "तुमचे लिंग काय आहे? (पुरुष / स्त्री / इतर)",
+        },
+        priority_order=2,
+    ),
+]
 
 # Seed question bank (also persisted in Supabase question_bank). Clinician-editable data.
 QUESTION_BANK: list[Question] = [
@@ -156,6 +196,16 @@ QUESTION_BANK: list[Question] = [
 ]
 
 
+def detect_phase(fields: CollectedFields) -> ConsultationPhase:
+    """Determine the current consultation phase based on collected fields."""
+    has_name = fields.is_collected("display_name")
+    has_age = fields.is_collected("age")
+    has_gender = fields.gender not in ("unknown", None)
+    if not (has_name and has_age and has_gender):
+        return ConsultationPhase.BASIC_DETAILS
+    return ConsultationPhase.CONSULTATION
+
+
 def select_next_question(
     fields: CollectedFields,
     missing_fields: list[str],
@@ -164,11 +214,17 @@ def select_next_question(
     max_questions: int = MAX_QUESTIONS,
     bank: list[Question] | None = None,
 ) -> Question | None:
-    if question_count_so_far >= max_questions:
-        return None
-
-    category = fields.complaint_category or "default"
-    questions = bank or QUESTION_BANK
+    phase = detect_phase(fields)
+    
+    if phase == ConsultationPhase.BASIC_DETAILS:
+        questions = BASIC_DETAILS_QUESTIONS
+        category = "*"
+        # Force max_questions to not apply to basic details
+    else:
+        if question_count_so_far >= max_questions:
+            return None
+        questions = bank or QUESTION_BANK
+        category = fields.complaint_category or "default"
 
     def matches_category(q: Question) -> bool:
         return q.complaint_category in (category, "*", "default") or (
@@ -181,7 +237,7 @@ def select_next_question(
         if matches_category(q) and not fields.is_collected(q.field)
     ]
 
-    if missing_fields:
+    if missing_fields and phase != ConsultationPhase.BASIC_DETAILS:
         missing_set = set(missing_fields)
         ranked = sorted(
             candidates,
@@ -191,6 +247,11 @@ def select_next_question(
         ranked = sorted(candidates, key=lambda q: q.priority_order)
 
     if not ranked:
+        if phase == ConsultationPhase.BASIC_DETAILS:
+            # Transition to consultation phase
+            return select_next_question(
+                fields, missing_fields, question_count_so_far, language, max_questions, bank
+            )
         if fields.is_collected("chief_complaint") and not missing_fields:
             return None
         return GENERIC_FOLLOWUP

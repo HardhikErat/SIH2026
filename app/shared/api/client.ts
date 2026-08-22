@@ -48,6 +48,8 @@ export const api = {
     display_name?: string;
     audio_consent?: boolean;
     camp_id?: string;
+    age?: number;
+    gender?: string;
   }) =>
     request<{
       session_id: string;
@@ -56,6 +58,11 @@ export const api = {
       language: LanguageOption;
       ai_message: string;
     }>('/session/start', { method: 'POST', body: JSON.stringify(body) }),
+  translate: (text: string, source_language: string, target_language: string) =>
+    request<{ translated_text: string }>('/translate', {
+      method: 'POST',
+      body: JSON.stringify({ text, source_language, target_language }),
+    }),
   turn: (sessionId: string, token: string, body: Record<string, unknown>) =>
     request<TurnResponse>(`/conversation/${sessionId}/turn`, { method: 'POST', body: JSON.stringify(body) }, token),
   state: (sessionId: string, token: string) =>
@@ -112,13 +119,15 @@ export type TurnResponse = {
   audio_url?: string;
   updated_fields: Record<string, unknown>;
   missing_fields: string[];
-  contradictions: unknown[];
-  priority_flag: string;
-  next_question: unknown;
+  next_question?: Record<string, unknown>;
   ready_for_confirm: boolean;
+  phase: 'basic_details' | 'consultation' | 'completed';
+  consultation_summary?: Record<string, unknown>;
   fact_chips: { label: string; field: string }[];
-  model_version?: string;
-  llm_live?: boolean;
+  model_version: string;
+  llm_live: boolean;
+  contradictions: any[];
+  priority_flag: string;
 };
 
 export type QueueItem = {

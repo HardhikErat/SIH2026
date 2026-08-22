@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Switch, Text, View, TextInput, Pressable } from 'react-native';
 import { api } from '../../shared/api/client';
 import { AppHeader } from '../../shared/components/AppHeader';
 import { Card } from '../../shared/components/Card';
@@ -18,6 +18,9 @@ export default function PatientEntry() {
   const [language, setLanguage] = useState('hi');
   const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [name, setName] = useState('');
+  const [age, setAge] = useState('');
+  const [gender, setGender] = useState<string | null>(null);
   const { setLanguage: setStoreLang, setAudioConsent, start } = useSession();
 
   const langs = useQuery({ queryKey: ['languages'], queryFn: () => api.languages() });
@@ -28,8 +31,18 @@ export default function PatientEntry() {
     try {
       setStoreLang(language);
       setAudioConsent(consent);
-      const res = await api.startSession({ language, audio_consent: consent });
-      start(res.session_id, res.token, res.ai_message);
+      const res = await api.startSession({
+        language,
+        audio_consent: consent,
+        display_name: name.trim() || undefined,
+        age: age ? parseInt(age, 10) : undefined,
+        gender: gender || undefined,
+      });
+      start(res.session_id, res.token, res.ai_message, {
+        name: name.trim(),
+        age,
+        gender: gender || 'unknown',
+      });
       speak(res.ai_message, language);
       router.push(`/(patient)/intake/${res.session_id}`);
     } finally {
@@ -54,8 +67,45 @@ export default function PatientEntry() {
       />
       <AppHeader
         title={t(language, 'start')}
-        subtitle="Choose your language, then tap Start. You can speak or type — whichever is easier."
+        subtitle="Please enter your basic details and choose a language to begin."
       />
+
+      <Card style={styles.formCard}>
+        <Text style={styles.label}>{t(language, 'enterName') || 'Full Name'}</Text>
+        <TextInput
+          style={styles.input}
+          value={name}
+          onChangeText={setName}
+          placeholder="e.g. Rahul Sharma"
+          placeholderTextColor={colors.inkMuted}
+        />
+
+        <Text style={styles.label}>{t(language, 'enterAge') || 'Age'}</Text>
+        <TextInput
+          style={styles.input}
+          value={age}
+          onChangeText={setAge}
+          keyboardType="numeric"
+          placeholder="e.g. 45"
+          placeholderTextColor={colors.inkMuted}
+          maxLength={3}
+        />
+
+        <Text style={styles.label}>{t(language, 'selectGender') || 'Gender'}</Text>
+        <View style={styles.genderRow}>
+          {['male', 'female', 'other'].map((g) => (
+            <Pressable
+              key={g}
+              style={[styles.genderBtn, gender === g && styles.genderBtnActive]}
+              onPress={() => setGender(g)}
+            >
+              <Text style={[styles.genderText, gender === g && styles.genderTextActive]}>
+                {t(language, g) || g.charAt(0).toUpperCase() + g.slice(1)}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </Card>
 
       <Card>
         <LanguagePicker
@@ -76,7 +126,11 @@ export default function PatientEntry() {
         </View>
       </Card>
 
-      <PrimaryButton label={t(language, 'start')} onPress={onStart} disabled={loading} />
+      <PrimaryButton 
+        label={t(language, 'start')} 
+        onPress={onStart} 
+        disabled={loading || !name.trim() || !age || !gender} 
+      />
     </Screen>
   );
 }
@@ -89,4 +143,32 @@ const styles = StyleSheet.create({
   consentCopy: { flex: 1, gap: space[1] },
   consentTitle: { ...typography.body, fontFamily: fonts.uiSemiBold },
   consentHint: { ...typography.caption },
+  formCard: { padding: space[4], gap: space[4], marginBottom: space[4] },
+  label: { ...typography.body, fontFamily: fonts.uiSemiBold, color: colors.ink },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderRadius: 8,
+    padding: space[3],
+    fontSize: 16,
+    fontFamily: fonts.ui,
+    color: colors.ink,
+    backgroundColor: colors.white,
+  },
+  genderRow: { flexDirection: 'row', gap: space[2] },
+  genderBtn: {
+    flex: 1,
+    paddingVertical: space[2],
+    paddingHorizontal: space[3],
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.line,
+    alignItems: 'center',
+  },
+  genderBtnActive: {
+    backgroundColor: colors.teal700,
+    borderColor: colors.teal700,
+  },
+  genderText: { ...typography.body, color: colors.ink },
+  genderTextActive: { color: colors.white, fontFamily: fonts.uiSemiBold },
 });

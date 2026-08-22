@@ -60,9 +60,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   static: {
+    flex: undefined,
+    minHeight: '100%',
     paddingHorizontal: space[5],
     paddingVertical: space[6],
     alignItems: 'center',
+    // @ts-ignore - web only
+    overflowY: 'auto',
   },
   inner: {
     width: '100%',

@@ -361,6 +361,40 @@ class LLMGateway:
         raw = self._complete_with_failover(system, json.dumps(fields.model_dump(), ensure_ascii=False), json_mode=False)
         return _strip_clinical_leaks(raw.strip().strip('"'))
 
+    def generate_consultation_summary(self, fields: CollectedFields, language: str) -> dict[str, Any]:
+        """Generates a structured consultation summary matching the ConsultationSummary schema."""
+        from core.schema import ConsultationSummary
+        
+        system = (
+            f"You are a clinical assistant. Generate a structured consultation summary for the patient in language code {language}. "
+            "Output ONLY valid JSON matching the provided schema. "
+            "Include patient details, main complaint, symptoms, duration, medical history, and observations. "
+            "Recommend sensible next steps (e.g., 'Rest', 'Drink fluids', 'Consult a doctor for evaluation'). "
+            "Do NOT diagnose or prescribe medications."
+        )
+        user = json.dumps(
+            {
+                "collected_fields": fields.model_dump(),
+                "schema": ConsultationSummary.model_json_schema(),
+            },
+            ensure_ascii=False,
+        )
+        try:
+            raw = self._complete_with_failover(system, user, json_mode=True)
+            data = _extract_json(raw)
+            # Ensure the disclaimer is present
+            summary = ConsultationSummary.model_validate(data)
+            return summary.model_dump()
+        except Exception as exc:
+            logger.warning("Failed to generate structured consultation summary: %s", exc)
+            # Fallback
+            return ConsultationSummary(
+                patient_name=fields.display_name,
+                patient_age=fields.age,
+                patient_gender=fields.gender if fields.gender != "unknown" else None,
+                main_complaint=fields.chief_complaint,
+            ).model_dump()
+
     def phrase_reply(
         self,
         utterance: str,

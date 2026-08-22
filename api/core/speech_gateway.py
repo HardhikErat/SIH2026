@@ -23,6 +23,8 @@ class SpeechProvider(Protocol):
 
     def synthesize(self, text: str, language: str) -> dict: ...
 
+    def translate(self, text: str, source_language: str, target_language: str) -> dict: ...
+
 
 class IndicWhisperProvider:
     name = "indic_whisper"
@@ -111,6 +113,34 @@ class BhashiniProvider:
                 audio_b64 = ""
             return {"audio_base64": audio_b64, "audio_url": None, "provider": self.name}
 
+    def translate(self, text: str, source_language: str, target_language: str) -> dict:
+        payload = {
+            "config": {
+                "language": {
+                    "sourceLanguage": source_language,
+                    "targetLanguage": target_language
+                }
+            },
+            "input": [{"source": text}],
+        }
+        with httpx.Client(timeout=60) as client:
+            r = client.post(
+                "https://dhruva-api.bhashini.gov.in/services/inference/translation",
+                headers={
+                    "Authorization": self.api_key,
+                    "userID": self.user_id,
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+            )
+            r.raise_for_status()
+            data = r.json()
+            try:
+                translated = data["output"][0]["target"]
+                return {"text": translated, "provider": self.name}
+            except (KeyError, IndexError, TypeError):
+                return {"error": "TRANSLATION_FAILED", "provider": self.name}
+
 
 def audio_upload_meta(audio_bytes: bytes) -> tuple[str, str]:
     """Groq Whisper infers format from filename — do not always send .wav."""
@@ -183,6 +213,13 @@ class StubSpeechProvider:
             "note": "TTS unavailable; on-screen text is the source of truth",
         }
 
+    def translate(self, text: str, source_language: str, target_language: str) -> dict:
+        return {
+            "text": text,
+            "provider": self.name,
+            "error": "TRANSLATION_UNAVAILABLE",
+        }
+
 
 class SpeechGateway:
     def __init__(self) -> None:
@@ -221,6 +258,16 @@ class SpeechGateway:
             except Exception as exc:  # noqa: BLE001
                 logger.warning("TTS %s failed: %s", getattr(provider, "name", provider), exc)
         return self.stub.synthesize(text, language)
+
+    def translate(self, text: str, source_language: str, target_language: str) -> dict:
+        for provider in self.providers:
+            if not hasattr(provider, "translate"):
+                continue
+            try:
+                return provider.translate(text, source_language, target_language)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Translation %s failed: %s", getattr(provider, "name", provider), exc)
+        return self.stub.translate(text, source_language, target_language)
 
 
 speech_gateway = SpeechGateway()

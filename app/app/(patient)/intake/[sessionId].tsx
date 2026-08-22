@@ -17,6 +17,7 @@ import { FactChip } from '../../../shared/components/FactChip';
 import { MicButton } from '../../../shared/components/MicButton';
 import { PrimaryButton } from '../../../shared/components/PrimaryButton';
 import { StatusBanner } from '../../../shared/components/StatusBanner';
+import { ConsultationSummaryCard } from '../../../shared/components/ConsultationSummaryCard';
 import { AnimatePresence } from '../../../shared/motion/AnimatePresence';
 import { MotionView } from '../../../shared/motion/MotionView';
 import { fadeInUp } from '../../../shared/motion/presets';
@@ -29,7 +30,7 @@ import { colors, fonts, layout, radius, space, typography } from '../../../share
 
 export default function IntakeScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
-  const { token, language, turns, chips, addTurns } = useSession();
+  const { token, language, turns, chips, addTurns, phase, consultationSummary } = useSession();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,10 +52,10 @@ export default function IntakeScreen() {
           content: content.trim(),
           language,
         });
-        addTurns(content.trim(), res.ai_message, res.fact_chips);
+        addTurns(content.trim(), res.ai_message, res.fact_chips, res.phase, res.consultation_summary);
         speak(res.ai_message, language);
         setText('');
-        if (res.ready_for_confirm) setReady(true);
+        if (res.ready_for_confirm && res.consultation_summary) setReady(true);
       } catch (e) {
         const msg = e instanceof ApiError ? e.message : t(language, 'retrying');
         setError(msg);
@@ -165,7 +166,7 @@ export default function IntakeScreen() {
         </AnimatePresence>
 
         <AnimatePresence>
-          {ready ? (
+          {ready && consultationSummary ? (
             <MotionView
               key="ready"
               style={styles.readyWrap}
@@ -174,46 +175,56 @@ export default function IntakeScreen() {
               exit={{ opacity: 0, y: -6 }}
               transition={transition}
             >
-              <PrimaryButton
-                label={t(language, 'submit')}
-                onPress={() => router.push(`/(patient)/confirm/${sessionId}`)}
-              />
+              <ConsultationSummaryCard summary={consultationSummary} language={language} />
+              <View style={styles.actionRow}>
+                <PrimaryButton
+                  label={t(language, 'confirmSubmit') || 'Confirm & Submit'}
+                  onPress={() => router.push(`/(patient)/confirm/${sessionId}`)}
+                />
+                <PrimaryButton
+                  label={t(language, 'continueTalking') || 'Continue Talking'}
+                  onPress={() => setReady(false)}
+                  outline
+                />
+              </View>
             </MotionView>
           ) : null}
         </AnimatePresence>
 
-        <View style={styles.composer}>
-          <View style={styles.micWrap}>
-            <MicButton
-              isRecording={isRecording}
-              processing={busy}
-              disabled={busy}
-              onStart={onMicStart}
-              onStop={onMicStop}
-            />
-          </View>
-          <View style={styles.textWrap}>
-            <Text style={styles.fallbackLabel}>{t(language, 'typeInstead')}</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                value={text}
-                onChangeText={setText}
-                placeholder="Type your answer..."
-                placeholderTextColor={colors.inkMuted}
-                multiline
-                editable={!busy}
-              />
-              <PrimaryButton
-                label="Send"
-                compact
-                fullWidth={false}
-                onPress={() => sendTurn(text)}
-                disabled={busy || !text.trim()}
+        {!ready && (
+          <View style={styles.composer}>
+            <View style={styles.micWrap}>
+              <MicButton
+                isRecording={isRecording}
+                processing={busy}
+                disabled={busy}
+                onStart={onMicStart}
+                onStop={onMicStop}
               />
             </View>
+            <View style={styles.textWrap}>
+              <Text style={styles.fallbackLabel}>{t(language, 'typeInstead')}</Text>
+              <View style={styles.inputRow}>
+                <TextInput
+                  style={styles.input}
+                  value={text}
+                  onChangeText={setText}
+                  placeholder="Type your answer..."
+                  placeholderTextColor={colors.inkMuted}
+                  multiline
+                  editable={!busy}
+                />
+                <PrimaryButton
+                  label="Send"
+                  compact
+                  fullWidth={false}
+                  onPress={() => sendTurn(text)}
+                  disabled={busy || !text.trim()}
+                />
+              </View>
+            </View>
           </View>
-        </View>
+        )}
         {busy ? <ActivityIndicator color={colors.teal700} style={styles.loader} /> : null}
       </View>
     </KeyboardAvoidingView>
@@ -252,6 +263,7 @@ const styles = StyleSheet.create({
   emptyBody: { ...typography.bodyMuted, textAlign: 'center' },
   bannerWrap: { marginBottom: space[3] },
   readyWrap: { marginBottom: space[3] },
+  actionRow: { gap: space[3], marginTop: space[4] },
   composer: {
     backgroundColor: colors.white,
     borderRadius: radius.card,

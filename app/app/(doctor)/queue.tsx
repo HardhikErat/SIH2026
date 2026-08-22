@@ -35,7 +35,7 @@ export default function DoctorQueue() {
   const next = queue.data?.next_patient;
 
   return (
-    <Screen doctor scroll={false} contentStyle={styles.content}>
+    <Screen doctor scroll={true} contentStyle={styles.content}>
       <AppHeader
         eyebrow="Queue"
         title="Who is next?"
@@ -46,6 +46,7 @@ export default function DoctorQueue() {
         onPress={() => next && router.push(`/(doctor)/patient/${next.intake_id}`)}
       />
       <FlatList
+        scrollEnabled={false}
         data={items}
         keyExtractor={(i) => i.intake_id}
         style={styles.list}
@@ -61,8 +62,8 @@ export default function DoctorQueue() {
 
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.sand100 },
-  content: { flex: 1, gap: space[4] },
-  list: { flex: 1, width: '100%' },
+  content: { gap: space[4] },
+  list: { width: '100%' },
   listContent: { paddingBottom: space[6] },
   empty: { ...typography.bodyMuted, marginTop: space[6], textAlign: 'center' },
 });

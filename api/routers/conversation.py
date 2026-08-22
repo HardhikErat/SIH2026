@@ -11,7 +11,7 @@ from core.config import settings
 from core.errors import ApiException
 from core.llm_gateway import gateway
 from core.normalization import normalize_fields
-from core.question_engine import question_text, select_next_question
+from core.question_engine import detect_phase, question_text, select_next_question
 from core.rule_engine import run_rule_engine
 from core.schema import CollectedFields, InputType, TurnRecord
 from core.speech_gateway import speech_gateway
@@ -68,6 +68,8 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
                 "updated_fields": session.get("collected_fields"),
                 "missing_fields": session.get("missing_fields") or [],
                 "next_question": session.get("pending_questions")[:1] if session.get("pending_questions") else None,
+                "phase": session.get("phase", "consultation"),
+                "consultation_summary": session.get("consultation_summary"),
             }
 
     language = body.language or session.get("language") or "en"
@@ -180,6 +182,20 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
     session["question_count"] = question_count
     session["model_version"] = gateway.model_version
     session["dictionary_review"] = review_terms
+    phase = detect_phase(merged).value
+    
+    summary = None
+    if done:
+        phase = "completed"
+        if not session.get("consultation_summary"):
+            summary = gateway.generate_consultation_summary(merged, language)
+        else:
+            summary = session.get("consultation_summary")
+            
+    session["phase"] = phase
+    if summary:
+        session["consultation_summary"] = summary
+        
     store.save_session(session)
 
     return {
@@ -191,6 +207,8 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
         "priority_flag": rules.priority_flag.value,
         "next_question": nxt.model_dump() if nxt else None,
         "ready_for_confirm": done,
+        "phase": phase,
+        "consultation_summary": summary,
         "fact_chips": _chips(merged),
         "model_version": gateway.model_version,
         "llm_live": gateway.live,

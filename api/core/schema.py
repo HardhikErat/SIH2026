@@ -38,6 +38,36 @@ class InputType(str, Enum):
     AUDIO = "audio"
 
 
+class ConsultationPhase(str, Enum):
+    BASIC_DETAILS = "basic_details"
+    CONSULTATION = "consultation"
+    COMPLETED = "completed"
+
+
+class ConsultationSummary(BaseModel):
+    """Structured consultation summary displayed to the patient at the end."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    patient_name: str | None = None
+    patient_age: int | None = None
+    patient_gender: str | None = None
+    main_complaint: str | None = None
+    symptoms: list[str] = Field(default_factory=list)
+    duration: str | None = None
+    severity: str | None = None
+    medical_history: list[str] = Field(default_factory=list)
+    current_medications: list[str] = Field(default_factory=list)
+    allergies: str | None = None
+    observations: list[str] = Field(default_factory=list)
+    recommended_next_steps: list[str] = Field(default_factory=list)
+    doctor_consultation_advised: bool = True
+    ai_disclaimer: str = (
+        "This is an AI-generated consultation summary, not a medical diagnosis. "
+        "Please consult a qualified healthcare professional for proper evaluation and treatment."
+    )
+
+
 class SymptomItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

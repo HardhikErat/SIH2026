@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from core.config import settings
-from routers import admin, conversation, doctor, intake, metrics, session, speech
+from routers import admin, conversation, doctor, intake, metrics, session, speech, translation
 
 app = FastAPI(
     title="Multilingual AI Pre-Consultation API",
@@ -28,6 +28,7 @@ PREFIX = "/api/v1"
 app.include_router(session.router, prefix=PREFIX, tags=["session"])
 app.include_router(conversation.router, prefix=PREFIX, tags=["conversation"])
 app.include_router(speech.router, prefix=PREFIX, tags=["speech"])
+app.include_router(translation.router, prefix=PREFIX, tags=["translation"])
 app.include_router(intake.router, prefix=PREFIX, tags=["intake"])
 app.include_router(doctor.router, prefix=PREFIX, tags=["doctor"])
 app.include_router(admin.router, prefix=PREFIX, tags=["admin"])

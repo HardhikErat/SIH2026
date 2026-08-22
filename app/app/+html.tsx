@@ -30,7 +30,9 @@ html {
 }
 html, body, #root {
   min-height: 100%;
+  height: 100%;
   background: #F7F9FC;
+  overflow-y: auto;
 }
 body {
   margin: 0;

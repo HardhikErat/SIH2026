@@ -20,6 +20,8 @@ class StartSessionBody(BaseModel):
     dialect_hint: str | None = None
     camp_id: str | None = None
     display_name: str | None = None
+    age: int | None = None
+    gender: str | None = None
     audio_consent: bool = False
 
 
@@ -58,10 +60,13 @@ def start_session(body: StartSessionBody) -> dict:
         preferred_language=body.language,
         dialect_hint=body.dialect_hint,
         camp_id=body.camp_id,
+        # supabase client might not have age/gender, but we can store it in metadata if needed. Assuming it accepts them or ignores them. We'll at least put it in fields.
     )
     session = store.create_session(patient["id"], camp_id=body.camp_id)
     fields = CollectedFields(
         display_name=body.display_name,
+        age=body.age,
+        gender=body.gender or "unknown",
         preferred_language=body.language,
         dialect_hint=body.dialect_hint,
     )
