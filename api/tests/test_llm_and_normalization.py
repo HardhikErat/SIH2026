@@ -1,6 +1,12 @@
 from core.llm_gateway import KeywordStubProvider, LLMGateway, _strip_clinical_leaks
 from core.normalization import normalize_fields, normalize_term
 from core.schema import CollectedFields, ExtractionDelta
+from core.speech_gateway import audio_upload_meta
+
+
+def test_audio_upload_meta_webm_and_wav():
+    assert audio_upload_meta(b"\x1a\x45\xdf\xa3rest")[0] == "audio.webm"
+    assert audio_upload_meta(b"RIFFxxxxWAVE")[0] == "audio.wav"
 
 
 def test_normalize_bukhar():

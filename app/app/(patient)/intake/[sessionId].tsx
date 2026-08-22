@@ -88,7 +88,7 @@ export default function IntakeScreen() {
     try {
       const transcript = await stopVoice();
       if (!transcript.trim()) {
-        setError("I didn't catch that clearly — can you repeat, or type instead?");
+        setError('No speech was heard. Hold Speak for a moment, then talk, then tap again to send.');
         return;
       }
       await sendTurn(transcript);

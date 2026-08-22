@@ -112,6 +112,23 @@ class BhashiniProvider:
             return {"audio_base64": audio_b64, "audio_url": None, "provider": self.name}
 
 
+def audio_upload_meta(audio_bytes: bytes) -> tuple[str, str]:
+    """Groq Whisper infers format from filename — do not always send .wav."""
+    if audio_bytes[:4] == b"RIFF":
+        return "audio.wav", "audio/wav"
+    if audio_bytes[:4] == b"OggS":
+        return "audio.ogg", "audio/ogg"
+    if audio_bytes[:4] == b"fLaC":
+        return "audio.flac", "audio/flac"
+    if audio_bytes[:3] == b"ID3" or audio_bytes[:2] in (b"\xff\xfb", b"\xff\xf3"):
+        return "audio.mp3", "audio/mpeg"
+    if len(audio_bytes) > 8 and audio_bytes[4:8] == b"ftyp":
+        return "audio.mp4", "audio/mp4"
+    if audio_bytes[:4] == b"\x1a\x45\xdf\xa3":
+        return "audio.webm", "audio/webm"
+    return "audio.webm", "audio/webm"
+
+
 class GroqWhisperProvider:
     name = "groq_whisper"
 
@@ -119,19 +136,21 @@ class GroqWhisperProvider:
         self.api_key = api_key
 
     def transcribe(self, audio_bytes: bytes, language: str) -> dict:
+        filename, mime = audio_upload_meta(audio_bytes)
+        lang = language.split("-")[0]
         with httpx.Client(timeout=60) as client:
             r = client.post(
                 "https://api.groq.com/openai/v1/audio/transcriptions",
                 headers={"Authorization": f"Bearer {self.api_key}"},
-                files={"file": ("audio.wav", audio_bytes, "audio/wav")},
-                data={"model": "whisper-large-v3-turbo", "language": language.split("-")[0]},
+                files={"file": (filename, audio_bytes, mime)},
+                data={"model": "whisper-large-v3-turbo", "language": lang, "response_format": "json"},
             )
             r.raise_for_status()
             data = r.json()
             text = (data.get("text") or "").strip()
             return {
                 "text": text,
-                "confidence": 0.85 if text else 0.0,
+                "confidence": 0.9 if text else 0.0,
                 "provider": self.name,
             }
 

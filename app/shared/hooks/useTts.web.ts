@@ -40,6 +40,11 @@ function utter(text: string, language: string) {
   synth.speak(u);
 }
 
+export function stopSpeaking() {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+}
+
 /** Web Speech Synthesis — avoids expo-speech cancel/speak race on browsers. */
 export function speak(text: string, language: string) {
   if (typeof window === 'undefined' || !text.trim()) return;

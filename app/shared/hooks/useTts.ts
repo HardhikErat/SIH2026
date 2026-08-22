@@ -20,6 +20,10 @@ function toBcp47(language: string): string {
   return map[base] ?? `${base}-IN`;
 }
 
+export function stopSpeaking() {
+  Speech.stop();
+}
+
 export function speak(text: string, language: string) {
   if (!text.trim()) return;
   Speech.stop();
