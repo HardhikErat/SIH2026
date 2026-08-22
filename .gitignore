@@ -14,7 +14,8 @@ env/
 !.env.local.template
 !.env.*.example
 
-# Expo / native
+# Test fixtures / local audio
+api/tests/fixtures/
 app/.expo/
 app/dist/
 app/web-build/

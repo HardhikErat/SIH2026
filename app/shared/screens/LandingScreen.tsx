@@ -25,7 +25,7 @@ export default function LandingScreen() {
           statusLabel="Voice-first"
           icon="🩺"
           accent="patient"
-          onPress={() => router.push('/(patient)')}
+          onPress={() => router.push('/start')}
         />
         <RoleCard
           title="I am a doctor"

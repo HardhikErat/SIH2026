@@ -26,7 +26,7 @@ export default function PatientLayout() {
         headerRight: () => <LanguageSwitcher languageCode={language || 'en'} />,
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Start intake', headerLeft: () => <BackHome /> }} />
+      <Stack.Screen name="start" options={{ title: 'Start intake', headerLeft: () => <BackHome /> }} />
       <Stack.Screen name="intake/[sessionId]" options={{ title: 'Tell us your problem' }} />
       <Stack.Screen name="confirm/[sessionId]" options={{ title: 'Check your answers' }} />
       <Stack.Screen name="done/[sessionId]" options={{ title: 'Please wait', headerBackVisible: false }} />

@@ -58,7 +58,7 @@ const PORTALS = [
     title: 'Start your intake',
     body: 'Tell us your problem by voice or text. A doctor will review before your consultation.',
     cta: 'Begin intake',
-    href: '/(patient)',
+    href: '/start',
     accent: colors.teal500,
   },
   {
@@ -96,9 +96,7 @@ export default function LandingScreen() {
 
           <ScrollReveal delay={0.12}>
             <h1 style={heroTitle}>
-              Care begins before
-              <br />
-              <span style={heroTitleAccent}>you see the doctor</span>
+              Care begins before you see the doctor
             </h1>
           </ScrollReveal>
 
@@ -116,7 +114,7 @@ export default function LandingScreen() {
                 style={ctaPrimary}
                 whileHover={{ y: -2, boxShadow: '0 12px 32px rgba(6,32,53,0.25)' }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => router.push('/(patient)')}
+                onClick={() => router.push('/start')}
               >
                 Start patient intake
               </motion.button>
@@ -218,7 +216,7 @@ export default function LandingScreen() {
                     style={portalCta}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => router.push(p.href as '/(patient)')}
+                    onClick={() => router.push(p.href as '/start')}
                   >
                     {p.cta} →
                   </motion.button>
@@ -238,7 +236,7 @@ export default function LandingScreen() {
             style={{ ...ctaPrimary, margin: '0 auto' }}
             whileHover={{ y: -2, boxShadow: '0 12px 32px rgba(6,32,53,0.25)' }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => router.push('/(patient)')}
+            onClick={() => router.push('/start')}
           >
             Start patient intake
           </motion.button>
@@ -283,7 +281,7 @@ function SiteNav() {
             style={navCta}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
-            onClick={() => router.push('/(patient)')}
+            onClick={() => router.push('/start')}
           >
             Book intake
           </motion.button>
