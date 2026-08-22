@@ -8,6 +8,7 @@ from typing import Any
 from uuid import uuid4
 
 from core.schema import IntakeStatus, SessionStatus
+from db.demo_staff import DEMO_STAFF, authenticate_demo_staff
 
 
 def _now() -> str:
@@ -24,22 +25,7 @@ class MemoryStore:
         self.audit: list[dict[str, Any]] = []
         self.asr_samples: list[dict[str, Any]] = []
         self.session_metrics: dict[str, dict[str, Any]] = {}
-        self.doctor_users: dict[str, dict[str, Any]] = {
-            "doctor@camp.local": {
-                "id": "00000000-0000-0000-0000-0000000000d1",
-                "email": "doctor@camp.local",
-                "password": "camp-demo",
-                "role": "doctor",
-                "camp_id": None,
-            },
-            "admin@camp.local": {
-                "id": "00000000-0000-0000-0000-0000000000a1",
-                "email": "admin@camp.local",
-                "password": "camp-demo",
-                "role": "admin",
-                "camp_id": None,
-            },
-        }
+        self.doctor_users: dict[str, dict[str, Any]] = dict(DEMO_STAFF)
 
     def create_camp(self, name: str, location: str, organizer: str, start_date: str, end_date: str) -> dict:
         camp_id = str(uuid4())
@@ -193,10 +179,7 @@ class MemoryStore:
         }
 
     def authenticate_staff(self, email: str, password: str) -> dict | None:
-        user = self.doctor_users.get(email.lower())
-        if user and user["password"] == password:
-            return user
-        return None
+        return authenticate_demo_staff(email, password)
 
     def reset(self) -> None:
         with self._lock:
@@ -207,22 +190,7 @@ class MemoryStore:
             self.audit.clear()
             self.asr_samples.clear()
             self.session_metrics.clear()
-            self.doctor_users = {
-                "doctor@camp.local": {
-                    "id": "00000000-0000-0000-0000-0000000000d1",
-                    "email": "doctor@camp.local",
-                    "password": "camp-demo",
-                    "role": "doctor",
-                    "camp_id": None,
-                },
-                "admin@camp.local": {
-                    "id": "00000000-0000-0000-0000-0000000000a1",
-                    "email": "admin@camp.local",
-                    "password": "camp-demo",
-                    "role": "admin",
-                    "camp_id": None,
-                },
-            }
+            self.doctor_users = dict(DEMO_STAFF)
 
 
 store = MemoryStore()

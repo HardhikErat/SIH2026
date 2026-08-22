@@ -8,6 +8,7 @@ from supabase import create_client
 
 from core.config import settings
 from core.schema import IntakeStatus, SessionStatus
+from db.demo_staff import authenticate_demo_staff
 
 SESSION_COLUMNS = {
     "patient_id",
@@ -176,5 +177,4 @@ class SupabaseStore:
         }
 
     def authenticate_staff(self, email: str, password: str) -> dict | None:
-        # Doctor login delegates to Supabase Auth in the router when configured.
-        return None
+        return authenticate_demo_staff(email, password)
