@@ -16,6 +16,7 @@ import { ChatBubble } from '../../../shared/components/ChatBubble';
 import { MicButton } from '../../../shared/components/MicButton';
 import { PrimaryButton } from '../../../shared/components/PrimaryButton';
 import { useMicPermission } from '../../../shared/hooks/useMicPermission';
+import { useVoiceInput } from '../../../shared/hooks/useVoiceInput';
 import { speak } from '../../../shared/hooks/useTts';
 import { t } from '../../../shared/i18n';
 import { useSession } from '../../../shared/store/session';
@@ -26,11 +27,11 @@ export default function IntakeScreen() {
   const { token, language, turns, chips, addTurns } = useSession();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
-  const [recording, setRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const turnCounter = useRef(1);
   const { ensure } = useMicPermission();
+  const { isRecording, start: startVoice, stop: stopVoice } = useVoiceInput({ language, token });
 
   const sendTurn = useCallback(
     async (content: string) => {
@@ -65,12 +66,35 @@ export default function IntakeScreen() {
       setError('Microphone permission denied. Type instead.');
       return;
     }
-    setRecording(true);
+    setError(null);
+    try {
+      await startVoice();
+    } catch {
+      setError('Voice input is not supported here. Type instead.');
+    }
   };
 
-  const onMicStop = () => {
-    setRecording(false);
-    setError('Voice upload needs ASR endpoint configured. Type instead for now.');
+  const onMicStop = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const transcript = await stopVoice();
+      if (!transcript.trim()) {
+        setError("I didn't catch that clearly — can you repeat, or type instead?");
+        return;
+      }
+      await sendTurn(transcript);
+    } catch (e) {
+      const msg =
+        e instanceof ApiError
+          ? e.message
+          : e instanceof Error && e.message === 'VOICE_UNSUPPORTED'
+            ? 'Voice input is not supported in this browser. Type instead.'
+            : t(language, 'retrying');
+      setError(msg);
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -107,7 +131,7 @@ export default function IntakeScreen() {
       ) : null}
       <View style={styles.inputRow}>
         <MicButton
-          isRecording={recording}
+          isRecording={isRecording}
           processing={busy}
           disabled={busy}
           onStart={onMicStart}

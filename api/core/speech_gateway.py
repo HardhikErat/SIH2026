@@ -112,6 +112,38 @@ class BhashiniProvider:
             return {"audio_base64": audio_b64, "audio_url": None, "provider": self.name}
 
 
+class GroqWhisperProvider:
+    name = "groq_whisper"
+
+    def __init__(self, api_key: str) -> None:
+        self.api_key = api_key
+
+    def transcribe(self, audio_bytes: bytes, language: str) -> dict:
+        with httpx.Client(timeout=60) as client:
+            r = client.post(
+                "https://api.groq.com/openai/v1/audio/transcriptions",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                files={"file": ("audio.wav", audio_bytes, "audio/wav")},
+                data={"model": "whisper-large-v3-turbo", "language": language.split("-")[0]},
+            )
+            r.raise_for_status()
+            data = r.json()
+            text = (data.get("text") or "").strip()
+            return {
+                "text": text,
+                "confidence": 0.85 if text else 0.0,
+                "provider": self.name,
+            }
+
+    def synthesize(self, text: str, language: str) -> dict:
+        return {
+            "audio_url": None,
+            "audio_base64": None,
+            "provider": self.name,
+            "note": "TTS handled by client",
+        }
+
+
 class StubSpeechProvider:
     name = "stub"
 
@@ -140,6 +172,8 @@ class SpeechGateway:
             self.providers.append(IndicWhisperProvider(settings.indic_whisper_url))
         if settings.bhashini_api_key:
             self.providers.append(BhashiniProvider(settings.bhashini_api_key, settings.bhashini_user_id))
+        if settings.groq_api_key:
+            self.providers.append(GroqWhisperProvider(settings.groq_api_key))
         self.stub = StubSpeechProvider()
 
     def transcribe(self, audio_bytes: bytes, language: str) -> dict:
