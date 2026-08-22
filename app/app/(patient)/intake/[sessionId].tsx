@@ -184,7 +184,7 @@ export default function IntakeScreen() {
                 <PrimaryButton
                   label={t(language, 'continueTalking') || 'Continue Talking'}
                   onPress={() => setReady(false)}
-                  outline
+                  variant="secondary"
                 />
               </View>
             </MotionView>

@@ -12,15 +12,8 @@ type Props = {
 };
 
 export function HorizontalScrollSteps({ title, subtitle, steps }: Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ['start start', 'end end'],
-  });
-  const x = useTransform(scrollYProgress, [0, 1], ['2%', `-${(steps.length - 1) * 72}%`]);
-
   return (
-    <section style={{ margin: '0 0 32px' }}>
+    <section style={{ margin: '0 0 32px', background: `linear-gradient(180deg, ${colors.sky50} 0%, ${colors.white} 100%)`, paddingTop: 32 }}>
       <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 24px 40px' }}>
         <ScrollReveal>
           <p style={eyebrow}>{subtitle}</p>
@@ -28,37 +21,26 @@ export function HorizontalScrollSteps({ title, subtitle, steps }: Props) {
         </ScrollReveal>
       </div>
 
-      <div ref={containerRef} style={{ height: `${steps.length * 55}vh`, position: 'relative' }}>
-        <div
-          style={{
-            position: 'sticky',
-            top: 0,
-            height: '100vh',
-            overflow: 'hidden',
-            display: 'flex',
-            alignItems: 'center',
-            background: `linear-gradient(180deg, ${colors.sky50} 0%, ${colors.white} 100%)`,
-          }}
-        >
-          <motion.div
-            style={{
-              x,
-              display: 'flex',
-              gap: 28,
-              padding: '0 max(24px, 5vw)',
-              width: 'max-content',
-            }}
-          >
-            {steps.map((step, index) => (
-              <article key={step.title} style={stepCard}>
-                <div style={stepIcon}>{step.icon}</div>
-                <span style={stepNum}>Step {index + 1}</span>
-                <h3 style={stepTitle}>{step.title}</h3>
-                <p style={stepBody}>{step.body}</p>
-              </article>
-            ))}
-          </motion.div>
-        </div>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 400px), 1fr))',
+          gap: 28,
+          maxWidth: 1120,
+          margin: '0 auto',
+          padding: '0 24px 64px',
+        }}
+      >
+        {steps.map((step, index) => (
+          <ScrollReveal key={step.title} delay={index * 0.1}>
+            <article style={stepCard}>
+              <div style={stepIcon}>{step.icon}</div>
+              <span style={stepNum}>Step {index + 1}</span>
+              <h3 style={stepTitle}>{step.title}</h3>
+              <p style={stepBody}>{step.body}</p>
+            </article>
+          </ScrollReveal>
+        ))}
       </div>
     </section>
   );
@@ -83,8 +65,7 @@ const heading: React.CSSProperties = {
 };
 
 const stepCard: React.CSSProperties = {
-  flexShrink: 0,
-  width: 'min(420px, 78vw)',
+  height: '100%',
   background: colors.white,
   borderRadius: radius.xl,
   padding: '36px 32px',
