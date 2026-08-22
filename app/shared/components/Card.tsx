@@ -14,10 +14,10 @@ export function Card({ children, style, padded = true }: Props) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.lg,
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     ...shadow.card,
   },
   padded: {

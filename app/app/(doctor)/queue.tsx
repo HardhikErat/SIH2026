@@ -26,7 +26,7 @@ export default function DoctorQueue() {
   if (queue.isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.primary} size="large" />
+        <ActivityIndicator color={colors.teal700} size="large" />
       </View>
     );
   }
@@ -50,8 +50,8 @@ export default function DoctorQueue() {
         keyExtractor={(i) => i.intake_id}
         style={styles.list}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item }) => (
-          <PatientQueueCard patient={item} onSelect={() => router.push(`/(doctor)/patient/${item.intake_id}`)} />
+        renderItem={({ item, index }) => (
+          <PatientQueueCard patient={item} index={index} onSelect={() => router.push(`/(doctor)/patient/${item.intake_id}`)} />
         )}
         ListEmptyComponent={<Text style={styles.empty}>No patients waiting. New intakes will appear here.</Text>}
       />
@@ -60,7 +60,7 @@ export default function DoctorQueue() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.sand100 },
   content: { flex: 1, gap: space[4] },
   list: { flex: 1, width: '100%' },
   listContent: { paddingBottom: space[6] },

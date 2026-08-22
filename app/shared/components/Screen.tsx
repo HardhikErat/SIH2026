@@ -1,5 +1,8 @@
 import { ReactNode } from 'react';
 import { ScrollView, StyleSheet, View, ViewStyle } from 'react-native';
+import { MotionView } from '../motion/MotionView';
+import { fadeInUp } from '../motion/presets';
+import { useMotionTransition } from '../motion/useMotionTransition';
 import { colors, layout, space } from '../theme';
 
 type Props = {
@@ -12,9 +15,18 @@ type Props = {
 };
 
 export function Screen({ children, scroll = true, wide, doctor, style, contentStyle }: Props) {
-  const maxWidth = doctor ? layout.doctorMax : wide ? layout.landingMax : layout.contentMax;
+  const maxWidth = doctor ? layout.doctorMax : wide ? layout.landingMax : layout.patientMax;
+  const transition = useMotionTransition();
+
   const inner = (
-    <View style={[styles.inner, { maxWidth }, contentStyle]}>{children}</View>
+    <MotionView
+      style={[styles.inner, { maxWidth }, contentStyle]}
+      initial={fadeInUp.initial}
+      animate={fadeInUp.animate}
+      transition={transition}
+    >
+      {children}
+    </MotionView>
   );
 
   if (!scroll) {
@@ -39,7 +51,7 @@ export function Screen({ children, scroll = true, wide, doctor, style, contentSt
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.sand100,
   },
   scroll: {
     flexGrow: 1,

@@ -1,5 +1,6 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, fonts, radius, space, typeScale } from '../theme';
+import { StyleSheet, Text } from 'react-native';
+import { MotionPressable } from '../motion/MotionPressable';
+import { colors, fonts, radius, space, touchMin, typography } from '../theme';
 
 export function PrimaryButton({
   label,
@@ -7,70 +8,76 @@ export function PrimaryButton({
   disabled,
   variant = 'primary',
   compact,
+  fullWidth = true,
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary' | 'ghost';
+  variant?: 'primary' | 'secondary' | 'text';
   compact?: boolean;
+  fullWidth?: boolean;
 }) {
   return (
-    <Pressable
+    <MotionPressable
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [
+      style={[
         styles.btn,
+        fullWidth && styles.full,
         compact && styles.compact,
+        variant === 'primary' && styles.primary,
         variant === 'secondary' && styles.sec,
-        variant === 'ghost' && styles.ghost,
+        variant === 'text' && styles.textBtn,
         disabled && styles.off,
-        pressed && !disabled && styles.pressed,
       ]}
       accessibilityRole="button"
     >
       <Text
         style={[
-          styles.text,
-          variant === 'secondary' && styles.secText,
-          variant === 'ghost' && styles.ghostText,
+          styles.label,
+          variant === 'secondary' && styles.secLabel,
+          variant === 'text' && styles.textLabel,
         ]}
       >
         {label}
       </Text>
-    </Pressable>
+    </MotionPressable>
   );
 }
 
 const styles = StyleSheet.create({
   btn: {
-    minHeight: 52,
-    backgroundColor: colors.primary,
-    borderRadius: radius.card,
+    minHeight: touchMin,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: space[5],
     marginVertical: space[1],
   },
+  primary: {
+    backgroundColor: colors.navy800,
+  },
+  full: { alignSelf: 'stretch' },
   compact: {
     minHeight: 44,
     paddingHorizontal: space[4],
+    alignSelf: 'auto',
   },
   sec: {
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.navy700,
   },
-  ghost: {
+  textBtn: {
     backgroundColor: 'transparent',
-    borderWidth: 0,
+    minHeight: 44,
   },
   off: { opacity: 0.45 },
-  pressed: { opacity: 0.9 },
-  text: {
-    color: colors.surfaceElevated,
-    fontSize: typeScale.md,
-    fontFamily: fonts.bodySemiBold,
+  label: {
+    color: colors.white,
+    fontSize: typography.body.fontSize,
+    fontFamily: fonts.uiSemiBold,
   },
-  secText: { color: colors.ink },
-  ghostText: { color: colors.primary },
+  secLabel: { color: colors.navy800 },
+  textLabel: { color: colors.navy800 },
 });

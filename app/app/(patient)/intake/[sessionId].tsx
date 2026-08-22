@@ -17,12 +17,16 @@ import { FactChip } from '../../../shared/components/FactChip';
 import { MicButton } from '../../../shared/components/MicButton';
 import { PrimaryButton } from '../../../shared/components/PrimaryButton';
 import { StatusBanner } from '../../../shared/components/StatusBanner';
+import { AnimatePresence } from '../../../shared/motion/AnimatePresence';
+import { MotionView } from '../../../shared/motion/MotionView';
+import { fadeInUp } from '../../../shared/motion/presets';
+import { useMotionTransition } from '../../../shared/motion/useMotionTransition';
 import { useMicPermission } from '../../../shared/hooks/useMicPermission';
 import { useVoiceInput } from '../../../shared/hooks/useVoiceInput';
 import { speak } from '../../../shared/hooks/useTts';
 import { t } from '../../../shared/i18n';
 import { useSession } from '../../../shared/store/session';
-import { colors, fonts, layout, radius, shadow, space, typography } from '../../../shared/theme';
+import { colors, fonts, layout, radius, space, typography } from '../../../shared/theme';
 
 export default function IntakeScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
@@ -34,6 +38,7 @@ export default function IntakeScreen() {
   const turnCounter = useRef(1);
   const { ensure } = useMicPermission();
   const { isRecording, start: startVoice, stop: stopVoice } = useVoiceInput({ language, token });
+  const transition = useMotionTransition();
 
   const sendTurn = useCallback(
     async (content: string) => {
@@ -107,22 +112,33 @@ export default function IntakeScreen() {
     >
       <View style={styles.shell}>
         {chips.length ? (
-          <View style={styles.chipsBar}>
+          <MotionView
+            style={styles.chipsBar}
+            initial={fadeInUp.initial}
+            animate={fadeInUp.animate}
+            transition={transition}
+            layout
+          >
             <Text style={styles.chipsLabel}>Understood so far</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {chips.map((c) => (
                 <FactChip key={c.field} label={c.label} />
               ))}
             </ScrollView>
-          </View>
+          </MotionView>
         ) : null}
 
         <FlatList
           data={turns}
           keyExtractor={(_, i) => String(i)}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <ChatBubble speaker={item.speaker} text={item.text} onPlay={() => speak(item.text, language)} />
+          renderItem={({ item, index }) => (
+            <ChatBubble
+              speaker={item.speaker}
+              text={item.text}
+              index={index}
+              onPlay={() => speak(item.text, language)}
+            />
           )}
           ListEmptyComponent={
             <View style={styles.empty}>
@@ -132,20 +148,38 @@ export default function IntakeScreen() {
           }
         />
 
-        {error ? (
-          <View style={styles.bannerWrap}>
-            <StatusBanner tone="error">{error}</StatusBanner>
-          </View>
-        ) : null}
+        <AnimatePresence>
+          {error ? (
+            <MotionView
+              key="error"
+              style={styles.bannerWrap}
+              initial={fadeInUp.initial}
+              animate={fadeInUp.animate}
+              exit={{ opacity: 0, y: -6 }}
+              transition={transition}
+            >
+              <StatusBanner tone="error">{error}</StatusBanner>
+            </MotionView>
+          ) : null}
+        </AnimatePresence>
 
-        {ready ? (
-          <View style={styles.readyWrap}>
-            <PrimaryButton
-              label={t(language, 'submit')}
-              onPress={() => router.push(`/(patient)/confirm/${sessionId}`)}
-            />
-          </View>
-        ) : null}
+        <AnimatePresence>
+          {ready ? (
+            <MotionView
+              key="ready"
+              style={styles.readyWrap}
+              initial={fadeInUp.initial}
+              animate={fadeInUp.animate}
+              exit={{ opacity: 0, y: -6 }}
+              transition={transition}
+            >
+              <PrimaryButton
+                label={t(language, 'submit')}
+                onPress={() => router.push(`/(patient)/confirm/${sessionId}`)}
+              />
+            </MotionView>
+          ) : null}
+        </AnimatePresence>
 
         <View style={styles.composer}>
           <View style={styles.micWrap}>
@@ -172,38 +206,38 @@ export default function IntakeScreen() {
               <PrimaryButton
                 label="Send"
                 compact
+                fullWidth={false}
                 onPress={() => sendTurn(text)}
                 disabled={busy || !text.trim()}
               />
             </View>
           </View>
         </View>
-        {busy ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
+        {busy ? <ActivityIndicator color={colors.teal700} style={styles.loader} /> : null}
       </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.surface },
+  flex: { flex: 1, backgroundColor: colors.sand100 },
   shell: {
     flex: 1,
     width: '100%',
-    maxWidth: layout.contentMax,
+    maxWidth: layout.patientMax,
     alignSelf: 'center',
     paddingHorizontal: space[4],
     paddingBottom: space[4],
   },
   chipsBar: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.lg,
+    backgroundColor: colors.white,
+    borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     padding: space[4],
     marginTop: space[3],
     marginBottom: space[3],
     gap: space[2],
-    ...shadow.card,
   },
   chipsLabel: { ...typography.label },
   list: { paddingBottom: space[4], flexGrow: 1 },
@@ -213,18 +247,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space[2],
   },
-  emptyTitle: { ...typography.h3, textAlign: 'center' },
+  emptyTitle: { ...typography.title, textAlign: 'center' },
   emptyBody: { ...typography.bodyMuted, textAlign: 'center' },
   bannerWrap: { marginBottom: space[3] },
   readyWrap: { marginBottom: space[3] },
   composer: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.lg,
+    backgroundColor: colors.white,
+    borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     padding: space[4],
     gap: space[4],
-    ...shadow.elevated,
   },
   micWrap: { alignItems: 'center' },
   textWrap: { gap: space[2] },
@@ -233,13 +266,11 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 52,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     borderRadius: radius.card,
     padding: space[3],
-    fontSize: typography.body.fontSize,
-    fontFamily: fonts.body,
-    color: colors.ink,
-    backgroundColor: colors.surface,
+    ...typography.body,
+    backgroundColor: colors.sand100,
   },
   loader: { marginTop: space[2] },
 });

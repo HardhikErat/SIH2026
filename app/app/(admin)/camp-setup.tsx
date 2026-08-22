@@ -7,7 +7,7 @@ import { PrimaryButton } from '../../shared/components/PrimaryButton';
 import { Screen } from '../../shared/components/Screen';
 import { StatusBanner } from '../../shared/components/StatusBanner';
 import { TextField } from '../../shared/components/TextField';
-import { colors, typography } from '../../shared/theme';
+import { colors, space, typography } from '../../shared/theme';
 
 export default function CampSetup() {
   const [name, setName] = useState('PHC Camp');
@@ -47,6 +47,6 @@ export default function CampSetup() {
 }
 
 const styles = StyleSheet.create({
-  form: { gap: 16 },
+  form: { gap: space[4] },
   demo: { ...typography.caption, textAlign: 'center' },
 });

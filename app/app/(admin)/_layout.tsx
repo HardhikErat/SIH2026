@@ -6,9 +6,9 @@ export default function AdminLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: colors.surface },
-        headerTintColor: colors.primary,
-        headerTitleStyle: { fontFamily: fonts.bodySemiBold, color: colors.ink },
+        headerStyle: { backgroundColor: colors.sand100 },
+        headerTintColor: colors.teal700,
+        headerTitleStyle: { fontFamily: fonts.uiSemiBold, color: colors.ink },
         headerShadowVisible: false,
       }}
     >
@@ -29,5 +29,5 @@ export default function AdminLayout() {
 
 const styles = StyleSheet.create({
   back: { paddingHorizontal: space[3], paddingVertical: space[2] },
-  backText: { color: colors.primary, fontFamily: fonts.bodySemiBold, fontSize: 15 },
+  backText: { color: colors.teal700, fontFamily: fonts.uiSemiBold, fontSize: 15 },
 });

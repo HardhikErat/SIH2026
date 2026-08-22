@@ -1,5 +1,6 @@
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, fonts, radius, space, typography } from '../theme';
+import { StatusPill } from './StatusPill';
 
 type Props = {
   label: string;
@@ -14,9 +15,7 @@ export function EditableField({ label, value, source, onChange }: Props) {
     <View style={[styles.wrap, pending && styles.pendingWrap]}>
       <View style={styles.head}>
         <Text style={styles.label}>{label}</Text>
-        <Text style={[styles.tag, pending ? styles.pending : styles.ok]}>
-          {pending ? 'AI-suggested' : 'Verified'}
-        </Text>
+        <StatusPill label={pending ? 'AI-suggested' : 'Verified'} tone={pending ? 'wait' : 'ok'} />
       </View>
       <TextInput
         value={value}
@@ -31,30 +30,26 @@ export function EditableField({ label, value, source, onChange }: Props) {
 
 const styles = StyleSheet.create({
   wrap: {
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.lg,
+    backgroundColor: colors.white,
+    borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     padding: space[4],
     marginBottom: space[3],
+    gap: space[3],
   },
-  pendingWrap: { borderStyle: 'dashed', borderColor: colors.accent },
-  head: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: space[2] },
-  label: { ...typography.h3 },
-  tag: { ...typography.caption, fontFamily: fonts.bodySemiBold },
-  pending: { color: colors.accent },
-  ok: { color: colors.flagLow },
+  pendingWrap: { borderStyle: 'dashed', borderColor: colors.statusWait },
+  head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: space[2] },
+  label: { ...typography.body, fontFamily: fonts.uiSemiBold },
   input: {
-    minHeight: 48,
+    minHeight: 52,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     borderRadius: radius.card,
     paddingHorizontal: space[3],
     paddingVertical: space[3],
-    fontSize: typography.body.fontSize,
-    fontFamily: fonts.body,
-    color: colors.ink,
-    backgroundColor: colors.surface,
+    ...typography.body,
+    backgroundColor: colors.sand100,
   },
-  dash: { borderStyle: 'dashed', borderColor: colors.accent },
+  dash: { borderStyle: 'dashed', borderColor: colors.statusWait },
 });

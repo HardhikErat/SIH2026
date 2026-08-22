@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, radius, space, typography } from '../theme';
+import { colors, space, typography } from '../theme';
 
 type Props = {
   eyebrow?: string;
@@ -23,18 +23,18 @@ export function AppHeader({ eyebrow, title, subtitle, align = 'left', children }
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: space[2], marginBottom: space[2] },
+  wrap: { gap: space[2], marginBottom: space[1] },
   center: { alignItems: 'center' },
   centerText: { textAlign: 'center' },
   eyebrow: {
     ...typography.label,
-    color: colors.primary,
+    color: colors.teal500,
   },
   title: {
-    ...typography.h1,
+    ...typography.headline,
   },
   subtitle: {
     ...typography.bodyMuted,
-    maxWidth: 560,
+    maxWidth: 480,
   },
 });

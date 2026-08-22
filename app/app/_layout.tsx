@@ -1,11 +1,15 @@
 import {
-  Fraunces_400Regular,
-  Fraunces_600SemiBold,
-} from '@expo-google-fonts/fraunces';
-import {
   Inter_400Regular,
   Inter_600SemiBold,
 } from '@expo-google-fonts/inter';
+import {
+  IBMPlexSans_400Regular,
+  IBMPlexSans_600SemiBold,
+} from '@expo-google-fonts/ibm-plex-sans';
+import {
+  NotoSans_400Regular,
+  NotoSans_600SemiBold,
+} from '@expo-google-fonts/noto-sans';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
@@ -21,10 +25,12 @@ SplashScreen.preventAutoHideAsync().catch(() => undefined);
 export default function RootLayout() {
   const [queryClient] = useState(() => new QueryClient());
   const [fontsLoaded] = useFonts({
-    Fraunces_400Regular,
-    Fraunces_600SemiBold,
     Inter_400Regular,
     Inter_600SemiBold,
+    NotoSans_400Regular,
+    NotoSans_600SemiBold,
+    IBMPlexSans_400Regular,
+    IBMPlexSans_600SemiBold,
   });
 
   useEffect(() => {
@@ -36,7 +42,7 @@ export default function RootLayout() {
   if (!fontsLoaded) {
     return (
       <View style={styles.boot}>
-        <ActivityIndicator color={colors.primary} size="large" />
+        <ActivityIndicator color={colors.teal700} size="large" />
       </View>
     );
   }
@@ -47,11 +53,11 @@ export default function RootLayout() {
         <StatusBar style="dark" />
         <Stack
           screenOptions={{
-            headerStyle: { backgroundColor: colors.surface },
-            headerTintColor: colors.ink,
-            headerTitleStyle: { fontFamily: 'Inter_600SemiBold', fontSize: 17 },
+            headerStyle: { backgroundColor: colors.sand100 },
+            headerTintColor: colors.navy800,
+            headerTitleStyle: { fontFamily: 'Inter_600SemiBold', fontSize: 17, color: colors.ink },
             headerShadowVisible: false,
-            contentStyle: { backgroundColor: colors.surface },
+            contentStyle: { backgroundColor: colors.sand100 },
           }}
         >
           <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -69,6 +75,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.sand100,
   },
 });

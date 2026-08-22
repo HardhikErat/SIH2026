@@ -4,12 +4,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { api, DoctorIntake } from '../../../shared/api/client';
 import { AppHeader } from '../../../shared/components/AppHeader';
-import { Card } from '../../../shared/components/Card';
 import { EditableField } from '../../../shared/components/EditableField';
 import { FlagBadge } from '../../../shared/components/FlagBadge';
 import { PrimaryButton } from '../../../shared/components/PrimaryButton';
 import { Screen } from '../../../shared/components/Screen';
-import { StatusBanner } from '../../../shared/components/StatusBanner';
+import { StatusPill } from '../../../shared/components/StatusPill';
 import { useSession } from '../../../shared/store/session';
 import { colors, space, typography } from '../../../shared/theme';
 
@@ -44,7 +43,7 @@ export default function DoctorPatientDetail() {
   if (detail.isLoading || !detail.data) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.primary} size="large" />
+        <ActivityIndicator color={colors.teal700} size="large" />
       </View>
     );
   }
@@ -75,40 +74,36 @@ export default function DoctorPatientDetail() {
         subtitle={intake.ai_summary}
       />
 
-      {high ? (
-        <StatusBanner tone="error">Urgent priority flag — review before Verify & Save</StatusBanner>
-      ) : null}
+      {high ? <StatusPill label="Urgent — review before saving" tone="urgent" /> : null}
 
       {(intake.missing_information ?? []).map((m: string) => (
         <FlagBadge key={m} type="missing" label={`Missing: ${m}`} />
       ))}
 
-      <Card style={styles.fieldsCard}>
-        <EditableField
-          label="Chief complaint"
-          value={local.chief_complaint ?? ''}
-          source={verified ? 'DOCTOR_VERIFIED' : 'AI_GENERATED'}
-          onChange={(v: string) => onSaveField('chief_complaint', v)}
-        />
-        <EditableField
-          label="Duration"
-          value={local.duration ?? ''}
-          source={verified ? 'DOCTOR_VERIFIED' : 'AI_GENERATED'}
-          onChange={(v: string) => onSaveField('duration', v)}
-        />
-        <EditableField
-          label="Medications"
-          value={local.medications ?? ''}
-          source={verified ? 'DOCTOR_VERIFIED' : 'AI_GENERATED'}
-          onChange={(v: string) => onSaveField('medications', v)}
-        />
-        <EditableField
-          label="Allergies"
-          value={local.allergies ?? ''}
-          source={verified ? 'DOCTOR_VERIFIED' : 'AI_GENERATED'}
-          onChange={(v: string) => onSaveField('allergies', v)}
-        />
-      </Card>
+      <EditableField
+        label="Chief complaint"
+        value={local.chief_complaint ?? ''}
+        source={verified ? 'DOCTOR_VERIFIED' : 'AI_GENERATED'}
+        onChange={(v: string) => onSaveField('chief_complaint', v)}
+      />
+      <EditableField
+        label="Duration"
+        value={local.duration ?? ''}
+        source={verified ? 'DOCTOR_VERIFIED' : 'AI_GENERATED'}
+        onChange={(v: string) => onSaveField('duration', v)}
+      />
+      <EditableField
+        label="Medications"
+        value={local.medications ?? ''}
+        source={verified ? 'DOCTOR_VERIFIED' : 'AI_GENERATED'}
+        onChange={(v: string) => onSaveField('medications', v)}
+      />
+      <EditableField
+        label="Allergies"
+        value={local.allergies ?? ''}
+        source={verified ? 'DOCTOR_VERIFIED' : 'AI_GENERATED'}
+        onChange={(v: string) => onSaveField('allergies', v)}
+      />
 
       {!verified ? (
         <PrimaryButton
@@ -123,7 +118,6 @@ export default function DoctorPatientDetail() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
-  fieldsCard: { gap: space[2] },
-  ok: { ...typography.h3, color: colors.flagLow, textAlign: 'center', marginTop: space[4] },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.sand100 },
+  ok: { ...typography.title, color: colors.statusOk, textAlign: 'center', marginTop: space[4] },
 });

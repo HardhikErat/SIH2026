@@ -1,5 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, radius, shadow, space, touchMin, typeScale } from '../theme';
+import { MotionView } from '../motion/MotionView';
+import { useReducedMotion } from '../motion/useReducedMotion';
+import { colors, fonts, radius, space, touchMin, typography } from '../theme';
 
 type Props = {
   isRecording: boolean;
@@ -11,6 +13,8 @@ type Props = {
 };
 
 export function MicButton({ isRecording, processing, error, disabled, onStart, onStop }: Props) {
+  const reduced = useReducedMotion();
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -26,12 +30,24 @@ export function MicButton({ isRecording, processing, error, disabled, onStart, o
       ]}
     >
       {processing ? (
-        <ActivityIndicator color={colors.surfaceElevated} />
+        <ActivityIndicator color={colors.white} />
       ) : (
         <View style={styles.inner}>
-          <View style={[styles.ring, isRecording && styles.ringActive]}>
+          <MotionView
+            style={[styles.ring, isRecording && styles.ringActive]}
+            animate={
+              isRecording && !reduced
+                ? { scale: [1, 1.06, 1], opacity: [1, 0.85, 1] }
+                : { scale: 1, opacity: 1 }
+            }
+            transition={
+              isRecording && !reduced
+                ? { duration: 1.4, repeat: Infinity, ease: 'easeInOut' }
+                : { duration: 0.15 }
+            }
+          >
             <View style={[styles.core, isRecording && styles.coreActive]} />
-          </View>
+          </MotionView>
           <Text style={styles.caption}>{isRecording ? 'Listening' : 'Speak'}</Text>
         </View>
       )}
@@ -41,45 +57,44 @@ export function MicButton({ isRecording, processing, error, disabled, onStart, o
 
 const styles = StyleSheet.create({
   btn: {
-    minWidth: touchMin + 48,
-    minHeight: touchMin + 48,
+    minWidth: touchMin + 40,
+    minHeight: touchMin + 40,
     borderRadius: radius.mic * 2,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.navy800,
     alignItems: 'center',
     justifyContent: 'center',
     padding: space[4],
-    ...shadow.elevated,
   },
   rec: { backgroundColor: colors.primaryDeep },
-  err: { backgroundColor: colors.flagHigh },
+  err: { backgroundColor: colors.statusUrgent },
   off: { opacity: 0.45 },
-  pressed: { transform: [{ scale: 0.98 }] },
+  pressed: { opacity: 0.92 },
   inner: { alignItems: 'center', gap: space[2] },
   ring: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 2,
     borderColor: 'rgba(255,255,255,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ringActive: { borderColor: colors.accent },
+  ringActive: { borderColor: colors.sand200 },
   core: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: colors.surfaceElevated,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.white,
   },
   coreActive: {
-    width: 16,
-    height: 16,
-    borderRadius: 4,
-    backgroundColor: colors.accent,
+    width: 14,
+    height: 14,
+    borderRadius: 3,
+    backgroundColor: colors.sand200,
   },
   caption: {
-    color: colors.surfaceElevated,
-    fontSize: typeScale.body,
-    fontFamily: fonts.bodySemiBold,
+    ...typography.body,
+    color: colors.white,
+    fontFamily: fonts.uiSemiBold,
   },
 });

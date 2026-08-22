@@ -1,17 +1,29 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, radius, space, typeScale } from '../theme';
+import { MotionView } from '../motion/MotionView';
+import { bubbleEnter } from '../motion/presets';
+import { useMotionTransition } from '../motion/useMotionTransition';
+import { colors, fonts, radius, space, typography } from '../theme';
 
 type Props = {
   speaker: 'ai' | 'patient';
   text: string;
   onPlay?: () => void;
+  index?: number;
 };
 
-export function ChatBubble({ speaker, text, onPlay }: Props) {
+export function ChatBubble({ speaker, text, onPlay, index = 0 }: Props) {
   const ai = speaker === 'ai';
+  const enter = bubbleEnter(speaker);
+  const transition = useMotionTransition(0.2, index * 0.04);
+
   return (
-    <View style={[styles.row, ai ? styles.left : styles.right]}>
-      {ai ? <Text style={styles.avatar}>AI</Text> : null}
+    <MotionView
+      style={[styles.row, ai ? styles.left : styles.right]}
+      initial={enter.initial}
+      animate={enter.animate}
+      transition={transition}
+      layout
+    >
       <View style={[styles.bubble, ai ? styles.ai : styles.patient]}>
         <Text style={[styles.text, ai ? styles.aiText : styles.pText]}>{text}</Text>
         {ai ? (
@@ -20,44 +32,32 @@ export function ChatBubble({ speaker, text, onPlay }: Props) {
           </Pressable>
         ) : null}
       </View>
-    </View>
+    </MotionView>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { marginBottom: space[4], flexDirection: 'row', alignItems: 'flex-end', gap: space[2] },
+  row: { marginBottom: space[4], flexDirection: 'row' },
   left: { justifyContent: 'flex-start' },
   right: { justifyContent: 'flex-end' },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primarySoft,
-    color: colors.primaryDeep,
-    textAlign: 'center',
-    lineHeight: 32,
-    fontSize: typeScale.xs,
-    fontFamily: fonts.bodySemiBold,
-    overflow: 'hidden',
-  },
   bubble: {
-    maxWidth: '82%',
-    borderRadius: radius.lg,
+    maxWidth: '88%',
+    borderRadius: radius.card,
     padding: space[4],
   },
   ai: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.teal700,
     borderBottomLeftRadius: radius.sm,
   },
   patient: {
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     borderBottomRightRadius: radius.sm,
   },
-  text: { fontSize: typeScale.body, lineHeight: 24, fontFamily: fonts.body },
-  aiText: { color: colors.surfaceElevated },
+  text: { ...typography.body },
+  aiText: { color: colors.white },
   pText: { color: colors.ink },
-  play: { marginTop: space[3], alignSelf: 'flex-start', minHeight: 36, justifyContent: 'center' },
-  playText: { color: colors.accent, fontSize: typeScale.sm, fontFamily: fonts.bodySemiBold },
+  play: { marginTop: space[3], minHeight: 36, justifyContent: 'center' },
+  playText: { ...typography.caption, color: colors.sand200, fontFamily: fonts.uiSemiBold },
 });

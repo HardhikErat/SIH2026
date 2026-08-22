@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, radius, shadow, space, typeScale } from '../theme';
+import { colors, fonts, radius, space, typography } from '../theme';
 import type { LanguageOption } from '../api/client';
 import { LanguageTierBadge } from './LanguageTierBadge';
 
@@ -71,35 +71,27 @@ function LangTile({
 
 const styles = StyleSheet.create({
   wrap: { gap: space[3] },
-  section: {
-    fontSize: typeScale.sm,
-    fontFamily: fonts.bodySemiBold,
-    color: colors.inkMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
+  section: { ...typography.label },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space[3] },
   tile: {
-    minWidth: 108,
-    minHeight: 92,
-    padding: space[4],
+    minWidth: 100,
+    minHeight: 88,
+    padding: space[3],
     borderRadius: radius.card,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: colors.sand100,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.line,
     justifyContent: 'center',
-    ...shadow.card,
   },
   tileOn: {
-    borderColor: colors.primary,
+    borderColor: colors.teal700,
     borderWidth: 2,
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.tealSoft,
   },
   native: {
-    fontSize: typeScale.md,
-    color: colors.ink,
-    fontFamily: fonts.bodySemiBold,
+    ...typography.body,
+    fontFamily: fonts.notoSemiBold,
   },
-  nativeOn: { color: colors.primaryDeep },
-  en: { fontSize: typeScale.sm, color: colors.inkMuted, marginTop: 4, fontFamily: fonts.body },
+  nativeOn: { color: colors.teal700 },
+  en: { ...typography.caption },
 });

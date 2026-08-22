@@ -1,46 +1,47 @@
-import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { colors, radius, shadow, space, typography } from '../theme';
+import { StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { MotionPressable } from '../motion/MotionPressable';
+import { colors, fonts, radius, shadow, space, typography } from '../theme';
+import { StatusPill } from './StatusPill';
+
+type Accent = 'patient' | 'doctor' | 'admin';
+
+const accentColors: Record<Accent, string> = {
+  patient: colors.teal500,
+  doctor: colors.navy700,
+  admin: colors.gold500,
+};
 
 type Props = {
   title: string;
   description: string;
-  badge?: string;
+  statusLabel?: string;
+  icon?: string;
+  accent?: Accent;
   onPress?: () => void;
-  href?: string;
-  accent?: string;
   style?: ViewStyle;
 };
 
-export function RoleCard({ title, description, badge, onPress, accent = colors.primary, style }: Props) {
+export function RoleCard({ title, description, statusLabel, icon, accent = 'patient', onPress, style }: Props) {
+  const accentColor = accentColors[accent];
+
   const content = (
-  <>
-      <View style={[styles.icon, { backgroundColor: `${accent}18` }]}>
-        <View style={[styles.dot, { backgroundColor: accent }]} />
-      </View>
-      <View style={styles.copy}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>{title}</Text>
-          {badge ? (
-            <View style={[styles.badge, { backgroundColor: `${accent}14` }]}>
-              <Text style={[styles.badgeText, { color: accent }]}>{badge}</Text>
-            </View>
-          ) : null}
-        </View>
+    <>
+      <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
+      <View style={styles.body}>
+        {icon ? <Text style={styles.icon}>{icon}</Text> : null}
+        {statusLabel ? <StatusPill label={statusLabel} tone="neutral" /> : null}
+        <Text style={styles.title}>{title}</Text>
         <Text style={styles.description}>{description}</Text>
+        <Text style={[styles.action, { color: accentColor }]}>Continue →</Text>
       </View>
-      <Text style={[styles.arrow, { color: accent }]}>→</Text>
     </>
   );
 
   if (onPress) {
     return (
-      <Pressable
-        onPress={onPress}
-        style={({ pressed }) => [styles.card, pressed && styles.pressed, style]}
-        accessibilityRole="button"
-      >
+      <MotionPressable onPress={onPress} style={[styles.card, style]} accessibilityRole="button">
         {content}
-      </Pressable>
+      </MotionPressable>
     );
   }
 
@@ -49,41 +50,22 @@ export function RoleCard({ title, description, badge, onPress, accent = colors.p
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space[4],
-    backgroundColor: colors.surfaceElevated,
-    borderRadius: radius.lg,
+    backgroundColor: colors.white,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: space[5],
-    ...shadow.card,
+    borderColor: colors.line,
+    overflow: 'hidden',
+    ...shadow.elevated,
   },
-  pressed: {
-    opacity: 0.92,
-    transform: [{ scale: 0.995 }],
-  },
-  icon: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-  },
-  copy: { flex: 1, gap: space[1] },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: space[2], flexWrap: 'wrap' },
-  title: { ...typography.h3 },
-  badge: {
-    paddingHorizontal: space[2],
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-  },
-  badgeText: { ...typography.caption, fontFamily: typography.label.fontFamily },
+  accentBar: { height: 4, width: '100%' },
+  body: { padding: space[5], gap: space[3] },
+  icon: { fontSize: 32 },
+  title: { ...typography.title },
   description: { ...typography.bodyMuted },
-  arrow: { fontSize: 22, fontWeight: '600' },
+  action: {
+    ...typography.label,
+    textTransform: 'none',
+    fontFamily: fonts.uiSemiBold,
+    marginTop: space[1],
+  },
 });

@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, space, typeScale } from '../theme';
+import { colors, radius, space, typeScale } from '../theme';
 
 export function LanguageTierBadge({ tier }: { tier: number }) {
   if (tier <= 1) return null;
@@ -15,12 +15,12 @@ const styles = StyleSheet.create({
   badge: {
     marginTop: space[2],
     alignSelf: 'flex-start',
-    backgroundColor: colors.surface,
-    borderColor: colors.accent,
+    backgroundColor: colors.tealSoft,
+    borderColor: colors.teal500,
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 6,
+    borderRadius: radius.sm,
+    paddingHorizontal: space[2],
     paddingVertical: 2,
   },
-  text: { fontSize: typeScale.xs, color: colors.inkMuted },
+  text: { fontSize: typeScale.label, color: colors.inkMuted },
 });

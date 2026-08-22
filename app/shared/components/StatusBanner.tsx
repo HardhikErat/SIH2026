@@ -1,19 +1,24 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, fonts, radius, space, typography } from '../theme';
+import { StatusTone, colors, fonts, radius, space, statusPalette, typography } from '../theme';
 
-type Tone = 'info' | 'success' | 'warning' | 'error';
+type Tone = StatusTone | 'info' | 'success' | 'warning' | 'error';
 
-const toneMap: Record<Tone, { bg: string; fg: string; border: string }> = {
-  info: { bg: colors.primarySoft, fg: colors.primaryDeep, border: `${colors.primary}33` },
-  success: { bg: '#EAF5EE', fg: colors.flagLow, border: `${colors.flagLow}33` },
-  warning: { bg: colors.accentSoft, fg: '#8A5A24', border: `${colors.accent}44` },
-  error: { bg: '#FCEEED', fg: colors.flagHigh, border: `${colors.flagHigh}33` },
+const map: Record<Tone, StatusTone> = {
+  info: 'neutral',
+  success: 'ok',
+  warning: 'wait',
+  error: 'urgent',
+  ok: 'ok',
+  wait: 'wait',
+  urgent: 'urgent',
+  neutral: 'neutral',
 };
 
 export function StatusBanner({ tone = 'info', children }: { tone?: Tone; children: string }) {
-  const palette = toneMap[tone];
+  const palette = statusPalette[map[tone]];
   return (
-    <View style={[styles.banner, { backgroundColor: palette.bg, borderColor: palette.border }]}>
+    <View style={[styles.banner, { backgroundColor: palette.bg, borderColor: `${palette.fg}33` }]}>
+      <View style={[styles.dot, { backgroundColor: palette.fg }]} />
       <Text style={[styles.text, { color: palette.fg }]}>{children}</Text>
     </View>
   );
@@ -21,13 +26,18 @@ export function StatusBanner({ tone = 'info', children }: { tone?: Tone; childre
 
 const styles = StyleSheet.create({
   banner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: space[3],
     borderWidth: 1,
     borderRadius: radius.card,
     paddingHorizontal: space[4],
     paddingVertical: space[3],
   },
+  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
   text: {
     ...typography.body,
-    fontFamily: fonts.bodySemiBold,
+    flex: 1,
+    fontFamily: fonts.uiSemiBold,
   },
 });

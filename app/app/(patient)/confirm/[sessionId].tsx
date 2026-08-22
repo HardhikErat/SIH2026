@@ -6,7 +6,7 @@ import { AppHeader } from '../../../shared/components/AppHeader';
 import { ConfirmationSummaryCard } from '../../../shared/components/ConfirmationSummaryCard';
 import { PrimaryButton } from '../../../shared/components/PrimaryButton';
 import { Screen } from '../../../shared/components/Screen';
-import { StatusBanner } from '../../../shared/components/StatusBanner';
+import { StatusPill } from '../../../shared/components/StatusPill';
 import { t } from '../../../shared/i18n';
 import { useSession } from '../../../shared/store/session';
 import { colors } from '../../../shared/theme';
@@ -54,7 +54,7 @@ export default function ConfirmScreen() {
   if (summary.isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.primary} size="large" />
+        <ActivityIndicator color={colors.teal700} size="large" />
       </View>
     );
   }
@@ -64,12 +64,8 @@ export default function ConfirmScreen() {
 
   return (
     <Screen>
-      <AppHeader
-        eyebrow="Review"
-        title="Check your answers"
-        subtitle={summary.data?.recap}
-      />
-      <StatusBanner tone="warning">AI-suggested · pending doctor verification</StatusBanner>
+      <AppHeader title="Check your answers" subtitle={summary.data?.recap} />
+      <StatusPill label="Pending doctor verification" tone="wait" />
       <ConfirmationSummaryCard fields={fieldRows(fields, missing)} />
       <PrimaryButton label={t(language, 'yesSubmit')} onPress={onSubmit} />
       <PrimaryButton label={t(language, 'goBack')} variant="secondary" onPress={() => router.back()} />
@@ -78,5 +74,5 @@ export default function ConfirmScreen() {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.sand100 },
 });

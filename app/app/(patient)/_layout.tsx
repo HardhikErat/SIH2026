@@ -1,5 +1,7 @@
 import { Stack, router } from 'expo-router';
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { LanguageSwitcher } from '../../shared/components/LanguageSwitcher';
+import { useSession } from '../../shared/store/session';
 import { colors, fonts, space } from '../../shared/theme';
 
 function BackHome() {
@@ -11,20 +13,21 @@ function BackHome() {
 }
 
 export default function PatientLayout() {
+  const { language } = useSession();
   return (
     <Stack
       screenOptions={{
         headerShown: true,
         headerBackTitle: 'Back',
-        headerStyle: { backgroundColor: colors.surface },
-        headerTintColor: colors.primary,
-        headerTitleStyle: { fontFamily: fonts.bodySemiBold, color: colors.ink },
+        headerStyle: { backgroundColor: colors.sand100 },
+        headerTintColor: colors.teal700,
+        headerTitleStyle: { fontFamily: fonts.uiSemiBold, color: colors.ink, fontSize: 17 },
         headerShadowVisible: false,
-        headerRight: () => <BackHome />,
+        headerRight: () => <LanguageSwitcher languageCode={language || 'en'} />,
       }}
     >
-      <Stack.Screen name="index" options={{ title: 'Start intake' }} />
-      <Stack.Screen name="intake/[sessionId]" options={{ title: 'Tell us your problem', headerRight: undefined }} />
+      <Stack.Screen name="index" options={{ title: 'Start intake', headerLeft: () => <BackHome /> }} />
+      <Stack.Screen name="intake/[sessionId]" options={{ title: 'Tell us your problem' }} />
       <Stack.Screen name="confirm/[sessionId]" options={{ title: 'Check your answers' }} />
       <Stack.Screen name="done/[sessionId]" options={{ title: 'Please wait', headerBackVisible: false }} />
     </Stack>
@@ -33,5 +36,5 @@ export default function PatientLayout() {
 
 const styles = StyleSheet.create({
   back: { paddingHorizontal: space[3], paddingVertical: space[2] },
-  backText: { color: colors.primary, fontFamily: fonts.bodySemiBold, fontSize: 15 },
+  backText: { color: colors.teal700, fontFamily: fonts.uiSemiBold, fontSize: 15 },
 });
