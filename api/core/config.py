@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     llm_provider: str = "groq"
     groq_api_key: str = ""
-    llm_model: str = "llama-3.1-8b-instant"
+    llm_model: str = "openai/gpt-oss-20b"
     llm_fallback_provider: str = "openrouter"
     openrouter_api_key: str = ""
     openrouter_model: str = "meta-llama/llama-3.1-8b-instruct:free"
