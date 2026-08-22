@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     llm_fallback_provider: str = "openrouter"
     openrouter_api_key: str = ""
     openrouter_model: str = "meta-llama/llama-3.1-8b-instruct:free"
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.0-flash"
 
     bhashini_api_key: str = ""
     bhashini_user_id: str = ""

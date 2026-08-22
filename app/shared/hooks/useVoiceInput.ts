@@ -29,7 +29,7 @@ type WebSpeechRecognition = {
   continuous: boolean;
   interimResults: boolean;
   maxAlternatives: number;
-  onresult: ((event: { results: { [index: number]: { [index: number]: { transcript: string } } } }) => void) | null;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
   onerror: ((event: { error: string }) => void) | null;
   onend: (() => void) | null;
   start: () => void;
@@ -44,6 +44,14 @@ function getWebSpeechRecognition(): (new () => WebSpeechRecognition) | null {
     webkitSpeechRecognition?: new () => WebSpeechRecognition;
   };
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+function collectTranscript(event: SpeechRecognitionEvent): string {
+  const parts: string[] = [];
+  for (let i = 0; i < event.results.length; i += 1) {
+    parts.push(event.results[i][0]?.transcript ?? '');
+  }
+  return parts.join(' ').trim();
 }
 
 async function blobToBase64(blob: Blob): Promise<string> {
@@ -68,37 +76,80 @@ export function useVoiceInput({ language, token }: Options) {
   const recordingRef = useRef<Audio.Recording | null>(null);
   const recognitionRef = useRef<WebSpeechRecognition | null>(null);
   const transcriptRef = useRef('');
+  const manualStopRef = useRef(false);
+  const stopResolverRef = useRef<((text: string) => void) | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
+
+  const releaseMicStream = useCallback(() => {
+    micStreamRef.current?.getTracks().forEach((t) => t.stop());
+    micStreamRef.current = null;
+  }, []);
 
   const start = useCallback(async () => {
     transcriptRef.current = '';
+    manualStopRef.current = false;
 
     if (Platform.OS === 'web') {
+      if (recognitionRef.current) return;
+
       const SpeechRecognition = getWebSpeechRecognition();
       if (!SpeechRecognition) {
         throw new Error('VOICE_UNSUPPORTED');
       }
+
+      // Keep mic stream open while listening — prevents Chrome from ending recognition early.
+      try {
+        micStreamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        throw new Error('MIC_DENIED');
+      }
+
       const recognition = new SpeechRecognition();
       recognition.lang = toBcp47(language);
       recognition.continuous = true;
       recognition.interimResults = true;
       recognition.maxAlternatives = 1;
+
       recognition.onresult = (event) => {
-        const results = event.results as unknown as ArrayLike<{ [index: number]: { transcript: string } }>;
-        const parts: string[] = [];
-        for (let i = 0; i < results.length; i += 1) {
-          parts.push(results[i][0]?.transcript ?? '');
+        const text = collectTranscript(event);
+        if (text) transcriptRef.current = text;
+      };
+
+      recognition.onerror = (event) => {
+        // Benign errors while the user is still speaking — do not kill the session.
+        if (event.error === 'no-speech' || event.error === 'aborted') return;
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          manualStopRef.current = true;
+          recognitionRef.current = null;
+          releaseMicStream();
+          setIsRecording(false);
         }
-        transcriptRef.current = parts.join(' ').trim();
       };
-      recognition.onerror = () => {
-        setIsRecording(false);
-      };
+
       recognition.onend = () => {
-        setIsRecording(false);
-        recognitionRef.current = null;
+        if (manualStopRef.current) {
+          recognitionRef.current = null;
+          releaseMicStream();
+          setIsRecording(false);
+          stopResolverRef.current?.(transcriptRef.current);
+          stopResolverRef.current = null;
+          return;
+        }
+
+        // Chrome ends the session after silence — restart until the user taps stop.
+        if (recognitionRef.current) {
+          try {
+            recognition.start();
+          } catch {
+            recognitionRef.current = null;
+            releaseMicStream();
+            setIsRecording(false);
+          }
+        }
       };
-      recognition.start();
+
       recognitionRef.current = recognition;
+      recognition.start();
       setIsRecording(true);
       return;
     }
@@ -112,15 +163,39 @@ export function useVoiceInput({ language, token }: Options) {
     await recording.startAsync();
     recordingRef.current = recording;
     setIsRecording(true);
-  }, [language]);
+  }, [language, releaseMicStream]);
 
   const stop = useCallback(async (): Promise<string> => {
     if (Platform.OS === 'web') {
       const recognition = recognitionRef.current;
       if (!recognition) return transcriptRef.current;
-      recognition.stop();
-      setIsRecording(false);
-      return transcriptRef.current;
+
+      manualStopRef.current = true;
+
+      return new Promise<string>((resolve) => {
+        stopResolverRef.current = resolve;
+
+        try {
+          recognition.stop();
+        } catch {
+          recognitionRef.current = null;
+          releaseMicStream();
+          setIsRecording(false);
+          stopResolverRef.current = null;
+          resolve(transcriptRef.current);
+        }
+
+        // Fallback if onend never fires
+        setTimeout(() => {
+          if (stopResolverRef.current) {
+            stopResolverRef.current = null;
+            recognitionRef.current = null;
+            releaseMicStream();
+            setIsRecording(false);
+            resolve(transcriptRef.current);
+          }
+        }, 800);
+      });
     }
 
     const recording = recordingRef.current;
@@ -137,12 +212,15 @@ export function useVoiceInput({ language, token }: Options) {
     const audioBase64 = await blobToBase64(blob);
     const result = await api.transcribe(token, audioBase64, language);
     return (result.text ?? '').trim();
-  }, [language, token]);
+  }, [language, token, releaseMicStream]);
 
   const cancel = useCallback(async () => {
     if (Platform.OS === 'web') {
+      manualStopRef.current = true;
+      stopResolverRef.current = null;
       recognitionRef.current?.abort();
       recognitionRef.current = null;
+      releaseMicStream();
       setIsRecording(false);
       return;
     }
@@ -152,7 +230,7 @@ export function useVoiceInput({ language, token }: Options) {
     if (recording) {
       await recording.stopAndUnloadAsync();
     }
-  }, []);
+  }, [releaseMicStream]);
 
   return { isRecording, start, stop, cancel };
 }

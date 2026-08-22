@@ -40,7 +40,7 @@ export type LanguageOption = {
 };
 
 export const api = {
-  health: () => request<{ status: string }>('/health'),
+  health: () => request<{ status: string; llm: string; llm_live: boolean; asr_live: boolean }>('/health'),
   languages: () => request<{ languages: LanguageOption[] }>('/languages'),
   startSession: (body: {
     language: string;
@@ -117,6 +117,8 @@ export type TurnResponse = {
   next_question: unknown;
   ready_for_confirm: boolean;
   fact_chips: { label: string; field: string }[];
+  model_version?: string;
+  llm_live?: boolean;
 };
 
 export type QueueItem = {

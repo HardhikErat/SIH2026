@@ -7,7 +7,9 @@ from pydantic import BaseModel
 
 from auth.supabase_auth import create_patient_token
 from core.languages import LANGUAGES, get_language
+from core.llm_gateway import gateway
 from core.schema import CollectedFields
+from core.speech_gateway import speech_gateway
 from db.supabase_client import get_store
 
 router = APIRouter()
@@ -28,7 +30,14 @@ class LanguagePatch(BaseModel):
 
 @router.get("/health")
 def health() -> dict:
-    return {"status": "ok", "service": "intake-api"}
+    asr_live = any(getattr(p, "name", "") != "stub" for p in speech_gateway.providers)
+    return {
+        "status": "ok",
+        "service": "intake-api",
+        "llm": gateway.model_version,
+        "llm_live": gateway.live,
+        "asr_live": asr_live,
+    }
 
 
 @router.get("/languages")

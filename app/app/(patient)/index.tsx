@@ -21,6 +21,7 @@ export default function PatientEntry() {
   const { setLanguage: setStoreLang, setAudioConsent, start } = useSession();
 
   const langs = useQuery({ queryKey: ['languages'], queryFn: () => api.languages() });
+  const health = useQuery({ queryKey: ['health'], queryFn: () => api.health() });
 
   const onStart = async () => {
     setLoading(true);
@@ -47,7 +48,10 @@ export default function PatientEntry() {
 
   return (
     <Screen>
-      <StatusPill label="Ready to begin" tone="ok" />
+      <StatusPill
+        label={health.data?.llm_live ? 'AI intake · live' : 'AI intake · demo mode'}
+        tone={health.data?.llm_live ? 'ok' : 'wait'}
+      />
       <AppHeader
         title={t(language, 'start')}
         subtitle="Choose your language, then tap Start. You can speak or type — whichever is easier."

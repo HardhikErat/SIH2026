@@ -21,7 +21,6 @@ import { AnimatePresence } from '../../../shared/motion/AnimatePresence';
 import { MotionView } from '../../../shared/motion/MotionView';
 import { fadeInUp } from '../../../shared/motion/presets';
 import { useMotionTransition } from '../../../shared/motion/useMotionTransition';
-import { useMicPermission } from '../../../shared/hooks/useMicPermission';
 import { useVoiceInput } from '../../../shared/hooks/useVoiceInput';
 import { speak } from '../../../shared/hooks/useTts';
 import { t } from '../../../shared/i18n';
@@ -36,7 +35,6 @@ export default function IntakeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const turnCounter = useRef(1);
-  const { ensure } = useMicPermission();
   const { isRecording, start: startVoice, stop: stopVoice } = useVoiceInput({ language, token });
   const transition = useMotionTransition();
 
@@ -68,20 +66,23 @@ export default function IntakeScreen() {
   );
 
   const onMicStart = async () => {
-    const ok = await ensure();
-    if (!ok) {
-      setError('Microphone permission denied. Type instead.');
-      return;
-    }
+    if (isRecording || busy) return;
     setError(null);
     try {
       await startVoice();
-    } catch {
-      setError('Voice input is not supported here. Type instead.');
+    } catch (e) {
+      const msg =
+        e instanceof Error && e.message === 'MIC_DENIED'
+          ? 'Microphone permission denied. Type instead.'
+          : e instanceof Error && e.message === 'VOICE_UNSUPPORTED'
+            ? 'Voice input is not supported in this browser. Type instead.'
+            : 'Could not start voice input. Type instead.';
+      setError(msg);
     }
   };
 
   const onMicStop = async () => {
+    if (!isRecording || busy) return;
     setBusy(true);
     setError(null);
     try {

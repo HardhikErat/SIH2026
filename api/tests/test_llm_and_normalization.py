@@ -30,6 +30,19 @@ def test_stub_extracts_fever_duration():
     assert delta.duration_days == 3
 
 
+def test_stub_phrases_followup():
+    gw = LLMGateway(providers=[KeywordStubProvider()])
+    reply = gw.phrase_reply(
+        "I have fever",
+        CollectedFields(chief_complaint="SYM_FEVER"),
+        "en",
+        next_field="duration",
+        next_hint="How many days has this been going on?",
+    )
+    assert "days" in reply.lower()
+    assert gw.live is False
+
+
 def test_strip_diagnosis_leak():
     text = "You should take antibiotics. Patient reports fever."
     cleaned = _strip_clinical_leaks(text)

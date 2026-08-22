@@ -149,16 +149,15 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
         language=language,
         max_questions=settings.max_questions,
     )
-    if nxt:
-        ai_text = question_text(nxt, language)
-        done = False
-    else:
-        ai_text = {
-            "en": "I have enough to show you a summary. Please check it.",
-            "hi": "मैंने सारांश तैयार कर लिया है। कृपया देख लें।",
-            "mr": "मी सारांश तयार केला आहे. कृपया तपासा.",
-        }.get(language.split("-")[0], "I have enough to show you a summary. Please check it.")
-        done = True
+    hint = question_text(nxt, language) if nxt else None
+    ai_text = gateway.phrase_reply(
+        utterance,
+        merged,
+        language,
+        next_field=nxt.field if nxt else None,
+        next_hint=hint,
+    )
+    done = nxt is None
 
     tts = speech_gateway.synthesize(ai_text, language)
     ai_id = str(uuid4())
@@ -194,6 +193,7 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
         "ready_for_confirm": done,
         "fact_chips": _chips(merged),
         "model_version": gateway.model_version,
+        "llm_live": gateway.live,
     }
 
 
