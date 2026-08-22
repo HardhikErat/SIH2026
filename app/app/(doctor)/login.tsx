@@ -1,10 +1,15 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { api } from '../../shared/api/client';
+import { AppHeader } from '../../shared/components/AppHeader';
+import { Card } from '../../shared/components/Card';
 import { PrimaryButton } from '../../shared/components/PrimaryButton';
+import { Screen } from '../../shared/components/Screen';
+import { StatusBanner } from '../../shared/components/StatusBanner';
+import { TextField } from '../../shared/components/TextField';
 import { useSession } from '../../shared/store/session';
-import { colors, space, typeScale } from '../../shared/theme';
+import { colors, space, typography } from '../../shared/theme';
 
 export default function DoctorLogin() {
   const [email, setEmail] = useState('doctor@camp.local');
@@ -24,35 +29,41 @@ export default function DoctorLogin() {
   };
 
   return (
-    <View style={styles.wrap}>
-      <Text style={styles.h}>Doctor dashboard</Text>
-      <TextInput style={styles.input} value={email} onChangeText={setEmail} autoCapitalize="none" placeholder="Email" />
-      <TextInput
-        style={styles.input}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        placeholder="Password"
+    <Screen>
+      <AppHeader
+        eyebrow="Doctor"
+        title="Sign in to review intakes"
+        subtitle="Review AI-generated summaries, edit fields, and Verify & Save before consultation."
       />
-      {error ? <Text style={styles.err}>{error}</Text> : null}
-      <PrimaryButton label="Log in" onPress={onLogin} />
-      <Text style={styles.demo}>Demo: doctor@camp.local / camp-demo</Text>
-    </View>
+
+      <Card>
+        <View style={styles.form}>
+          <TextField
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            placeholder="doctor@camp.local"
+          />
+          <TextField
+            label="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            placeholder="Enter password"
+          />
+          {error ? <StatusBanner tone="error">{error}</StatusBanner> : null}
+          <PrimaryButton label="Log in" onPress={onLogin} />
+        </View>
+      </Card>
+
+      <Text style={styles.demo}>Demo credentials: doctor@camp.local / camp-demo</Text>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, padding: space[5], gap: space[3], backgroundColor: colors.surface },
-  h: { fontSize: typeScale.lg, color: colors.ink, fontWeight: '700', marginBottom: space[3] },
-  input: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: space[3],
-    fontSize: typeScale.body,
-    backgroundColor: colors.surfaceAlt,
-  },
-  err: { color: colors.flagHigh, fontSize: typeScale.body },
-  demo: { marginTop: space[4], color: colors.inkMuted, fontSize: typeScale.sm },
+  form: { gap: space[4] },
+  demo: { ...typography.caption, textAlign: 'center' },
 });

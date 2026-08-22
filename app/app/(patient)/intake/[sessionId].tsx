@@ -1,5 +1,5 @@
 import { useLocalSearchParams, router } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -13,14 +13,16 @@ import {
 } from 'react-native';
 import { api, ApiError } from '../../../shared/api/client';
 import { ChatBubble } from '../../../shared/components/ChatBubble';
+import { FactChip } from '../../../shared/components/FactChip';
 import { MicButton } from '../../../shared/components/MicButton';
 import { PrimaryButton } from '../../../shared/components/PrimaryButton';
+import { StatusBanner } from '../../../shared/components/StatusBanner';
 import { useMicPermission } from '../../../shared/hooks/useMicPermission';
 import { useVoiceInput } from '../../../shared/hooks/useVoiceInput';
 import { speak } from '../../../shared/hooks/useTts';
 import { t } from '../../../shared/i18n';
 import { useSession } from '../../../shared/store/session';
-import { colors, space, typeScale } from '../../../shared/theme';
+import { colors, fonts, layout, radius, shadow, space, typography } from '../../../shared/theme';
 
 export default function IntakeScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
@@ -103,81 +105,141 @@ export default function IntakeScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={80}
     >
-      <FlatList
-        data={turns}
-        keyExtractor={(_, i) => String(i)}
-        contentContainerStyle={styles.list}
-        ListHeaderComponent={
-          chips.length ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chips}>
+      <View style={styles.shell}>
+        {chips.length ? (
+          <View style={styles.chipsBar}>
+            <Text style={styles.chipsLabel}>Understood so far</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               {chips.map((c) => (
-                <View key={c.field} style={styles.chip}>
-                  <Text style={styles.chipText}>{c.label}</Text>
-                </View>
+                <FactChip key={c.field} label={c.label} />
               ))}
             </ScrollView>
-          ) : null
-        }
-        renderItem={({ item }) => (
-          <ChatBubble speaker={item.speaker} text={item.text} onPlay={() => speak(item.text, language)} />
-        )}
-      />
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      {ready ? (
-        <PrimaryButton
-          label={t(language, 'submit')}
-          onPress={() => router.push(`/(patient)/confirm/${sessionId}`)}
+          </View>
+        ) : null}
+
+        <FlatList
+          data={turns}
+          keyExtractor={(_, i) => String(i)}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <ChatBubble speaker={item.speaker} text={item.text} onPlay={() => speak(item.text, language)} />
+          )}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyTitle}>Tap Speak and tell us your problem</Text>
+              <Text style={styles.emptyBody}>You can also type below if voice is not available.</Text>
+            </View>
+          }
         />
-      ) : null}
-      <View style={styles.inputRow}>
-        <MicButton
-          isRecording={isRecording}
-          processing={busy}
-          disabled={busy}
-          onStart={onMicStart}
-          onStop={onMicStop}
-        />
-        <TextInput
-          style={styles.input}
-          value={text}
-          onChangeText={setText}
-          placeholder={t(language, 'typeInstead')}
-          placeholderTextColor={colors.inkMuted}
-          multiline
-          editable={!busy}
-        />
-        <PrimaryButton label="Send" onPress={() => sendTurn(text)} disabled={busy || !text.trim()} />
+
+        {error ? (
+          <View style={styles.bannerWrap}>
+            <StatusBanner tone="error">{error}</StatusBanner>
+          </View>
+        ) : null}
+
+        {ready ? (
+          <View style={styles.readyWrap}>
+            <PrimaryButton
+              label={t(language, 'submit')}
+              onPress={() => router.push(`/(patient)/confirm/${sessionId}`)}
+            />
+          </View>
+        ) : null}
+
+        <View style={styles.composer}>
+          <View style={styles.micWrap}>
+            <MicButton
+              isRecording={isRecording}
+              processing={busy}
+              disabled={busy}
+              onStart={onMicStart}
+              onStop={onMicStop}
+            />
+          </View>
+          <View style={styles.textWrap}>
+            <Text style={styles.fallbackLabel}>{t(language, 'typeInstead')}</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                value={text}
+                onChangeText={setText}
+                placeholder="Type your answer..."
+                placeholderTextColor={colors.inkMuted}
+                multiline
+                editable={!busy}
+              />
+              <PrimaryButton
+                label="Send"
+                compact
+                onPress={() => sendTurn(text)}
+                disabled={busy || !text.trim()}
+              />
+            </View>
+          </View>
+        </View>
+        {busy ? <ActivityIndicator color={colors.primary} style={styles.loader} /> : null}
       </View>
-      {busy ? <ActivityIndicator color={colors.primary} style={{ marginBottom: 8 }} /> : null}
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.surface, padding: space[4] },
-  list: { paddingBottom: space[4] },
-  chips: { marginBottom: space[3], maxHeight: 44 },
-  chip: {
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: 999,
-    paddingHorizontal: space[3],
-    paddingVertical: 6,
-    marginRight: space[2],
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipText: { fontSize: typeScale.sm, color: colors.ink },
-  inputRow: { gap: space[3], alignItems: 'flex-end' },
-  input: {
+  flex: { flex: 1, backgroundColor: colors.surface },
+  shell: {
     flex: 1,
-    minHeight: 48,
+    width: '100%',
+    maxWidth: layout.contentMax,
+    alignSelf: 'center',
+    paddingHorizontal: space[4],
+    paddingBottom: space[4],
+  },
+  chipsBar: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
-    padding: space[3],
-    fontSize: typeScale.body,
-    color: colors.ink,
-    backgroundColor: colors.surfaceAlt,
+    padding: space[4],
+    marginTop: space[3],
+    marginBottom: space[3],
+    gap: space[2],
+    ...shadow.card,
   },
-  error: { color: colors.flagHigh, fontSize: typeScale.body, marginBottom: space[2] },
+  chipsLabel: { ...typography.label },
+  list: { paddingBottom: space[4], flexGrow: 1 },
+  empty: {
+    paddingVertical: space[8],
+    paddingHorizontal: space[4],
+    alignItems: 'center',
+    gap: space[2],
+  },
+  emptyTitle: { ...typography.h3, textAlign: 'center' },
+  emptyBody: { ...typography.bodyMuted, textAlign: 'center' },
+  bannerWrap: { marginBottom: space[3] },
+  readyWrap: { marginBottom: space[3] },
+  composer: {
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: space[4],
+    gap: space[4],
+    ...shadow.elevated,
+  },
+  micWrap: { alignItems: 'center' },
+  textWrap: { gap: space[2] },
+  fallbackLabel: { ...typography.caption, textAlign: 'center' },
+  inputRow: { gap: space[3] },
+  input: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.card,
+    padding: space[3],
+    fontSize: typography.body.fontSize,
+    fontFamily: fonts.body,
+    color: colors.ink,
+    backgroundColor: colors.surface,
+  },
+  loader: { marginTop: space[2] },
 });

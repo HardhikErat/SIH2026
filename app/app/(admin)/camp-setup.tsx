@@ -1,8 +1,13 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { api } from '../../shared/api/client';
+import { AppHeader } from '../../shared/components/AppHeader';
+import { Card } from '../../shared/components/Card';
 import { PrimaryButton } from '../../shared/components/PrimaryButton';
-import { colors, space, typeScale } from '../../shared/theme';
+import { Screen } from '../../shared/components/Screen';
+import { StatusBanner } from '../../shared/components/StatusBanner';
+import { TextField } from '../../shared/components/TextField';
+import { colors, typography } from '../../shared/theme';
 
 export default function CampSetup() {
   const [name, setName] = useState('PHC Camp');
@@ -19,33 +24,29 @@ export default function CampSetup() {
       start_date: new Date().toISOString().slice(0, 10),
       end_date: new Date().toISOString().slice(0, 10),
     })) as { id?: string };
-    setMessage(`Camp created: ${camp.id ?? 'ok'}`);
+    setMessage(`Camp created successfully. ID: ${camp.id ?? 'ok'}`);
   };
 
   return (
-    <View style={styles.wrap}>
-      <Text style={styles.h}>Create camp session</Text>
-      <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="Camp name" />
-      <TextInput style={styles.input} value={location} onChangeText={setLocation} placeholder="Location" />
-      <TextInput style={styles.input} value={organizer} onChangeText={setOrganizer} placeholder="Organizer" />
-      <PrimaryButton label="Create camp" onPress={onCreate} />
-      {message ? <Text style={styles.msg}>{message}</Text> : null}
+    <Screen>
+      <AppHeader
+        eyebrow="Admin"
+        title="Create camp session"
+        subtitle="Set up today's outreach camp so patient intakes are grouped correctly."
+      />
+      <Card style={styles.form}>
+        <TextField label="Camp name" value={name} onChangeText={setName} placeholder="PHC Camp" />
+        <TextField label="Location" value={location} onChangeText={setLocation} placeholder="Rural CHC" />
+        <TextField label="Organizer" value={organizer} onChangeText={setOrganizer} placeholder="ASHA team" />
+        <PrimaryButton label="Create camp" onPress={onCreate} />
+      </Card>
+      {message ? <StatusBanner tone="success">{message}</StatusBanner> : null}
       <Text style={styles.demo}>Demo admin: admin@camp.local / camp-demo</Text>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, padding: space[5], gap: space[3], backgroundColor: colors.surface },
-  h: { fontSize: typeScale.lg, fontWeight: '700', color: colors.ink },
-  input: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: space[3],
-    backgroundColor: colors.surfaceAlt,
-  },
-  msg: { color: colors.primary, fontSize: typeScale.body },
-  demo: { color: colors.inkMuted, fontSize: typeScale.sm, marginTop: space[4] },
+  form: { gap: 16 },
+  demo: { ...typography.caption, textAlign: 'center' },
 });

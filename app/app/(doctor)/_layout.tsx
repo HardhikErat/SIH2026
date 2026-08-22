@@ -1,11 +1,35 @@
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
+import { Pressable, StyleSheet, Text } from 'react-native';
+import { colors, fonts, space } from '../../shared/theme';
 
 export default function DoctorLayout() {
   return (
-    <Stack screenOptions={{ headerStyle: { backgroundColor: '#FBF9F6' } }}>
-      <Stack.Screen name="login" options={{ title: 'Doctor login' }} />
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: colors.surface },
+        headerTintColor: colors.primary,
+        headerTitleStyle: { fontFamily: fonts.bodySemiBold, color: colors.ink },
+        headerShadowVisible: false,
+      }}
+    >
+      <Stack.Screen
+        name="login"
+        options={{
+          title: 'Doctor login',
+          headerLeft: () => (
+            <Pressable onPress={() => router.push('/')} style={styles.back}>
+              <Text style={styles.backText}>Home</Text>
+            </Pressable>
+          ),
+        }}
+      />
       <Stack.Screen name="queue" options={{ title: 'Patient queue' }} />
       <Stack.Screen name="patient/[intakeId]" options={{ title: 'Patient summary' }} />
     </Stack>
   );
 }
+
+const styles = StyleSheet.create({
+  back: { paddingHorizontal: space[3], paddingVertical: space[2] },
+  backText: { color: colors.primary, fontFamily: fonts.bodySemiBold, fontSize: 15 },
+});

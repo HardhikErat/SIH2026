@@ -1,12 +1,15 @@
 import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { api } from '../../../shared/api/client';
+import { AppHeader } from '../../../shared/components/AppHeader';
 import { ConfirmationSummaryCard } from '../../../shared/components/ConfirmationSummaryCard';
 import { PrimaryButton } from '../../../shared/components/PrimaryButton';
+import { Screen } from '../../../shared/components/Screen';
+import { StatusBanner } from '../../../shared/components/StatusBanner';
 import { t } from '../../../shared/i18n';
 import { useSession } from '../../../shared/store/session';
-import { colors, space, typeScale } from '../../../shared/theme';
+import { colors } from '../../../shared/theme';
 
 function fieldRows(fields: Record<string, unknown>, missing: string[]) {
   const rows: { label: string; value: string; unknown?: boolean }[] = [];
@@ -51,7 +54,7 @@ export default function ConfirmScreen() {
   if (summary.isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.primary} />
+        <ActivityIndicator color={colors.primary} size="large" />
       </View>
     );
   }
@@ -60,23 +63,20 @@ export default function ConfirmScreen() {
   const missing = summary.data?.missing_fields ?? [];
 
   return (
-    <View style={styles.wrap}>
-      <Text style={styles.tag}>AI-suggested · pending verification</Text>
-      <Text style={styles.recap}>{summary.data?.recap}</Text>
+    <Screen>
+      <AppHeader
+        eyebrow="Review"
+        title="Check your answers"
+        subtitle={summary.data?.recap}
+      />
+      <StatusBanner tone="warning">AI-suggested · pending doctor verification</StatusBanner>
       <ConfirmationSummaryCard fields={fieldRows(fields, missing)} />
       <PrimaryButton label={t(language, 'yesSubmit')} onPress={onSubmit} />
-      <PrimaryButton
-        label={t(language, 'goBack')}
-        variant="secondary"
-        onPress={() => router.back()}
-      />
-    </View>
+      <PrimaryButton label={t(language, 'goBack')} variant="secondary" onPress={() => router.back()} />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, padding: space[5], gap: space[4], backgroundColor: colors.surface },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  tag: { color: colors.accent, fontSize: typeScale.sm, fontWeight: '600' },
-  recap: { fontSize: typeScale.body, color: colors.ink, lineHeight: 24 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
 });

@@ -1,14 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Switch, Text, View } from 'react-native';
 import { api } from '../../shared/api/client';
+import { AppHeader } from '../../shared/components/AppHeader';
+import { Card } from '../../shared/components/Card';
 import { LanguagePicker } from '../../shared/components/LanguagePicker';
 import { PrimaryButton } from '../../shared/components/PrimaryButton';
+import { Screen } from '../../shared/components/Screen';
+import { speak } from '../../shared/hooks/useTts';
 import { t } from '../../shared/i18n';
 import { useSession } from '../../shared/store/session';
-import { colors, space, typeScale } from '../../shared/theme';
-import { speak } from '../../shared/hooks/useTts';
+import { colors, space, typography } from '../../shared/theme';
 
 export default function PatientEntry() {
   const [language, setLanguage] = useState('hi');
@@ -35,33 +38,48 @@ export default function PatientEntry() {
   if (langs.isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.primary} />
+        <ActivityIndicator color={colors.primary} size="large" />
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.wrap}>
-      <Text style={styles.lead}>{t(language, 'start')}</Text>
-      <LanguagePicker
-        languages={langs.data?.languages ?? []}
-        value={language}
-        onChange={setLanguage}
-        onPreview={(lang) => speak(lang.native_name, lang.code)}
+    <Screen>
+      <AppHeader
+        eyebrow="Patient"
+        title={t(language, 'start')}
+        subtitle="Choose your language, then speak or type. The assistant writes down your problem for the doctor."
       />
-      <View style={styles.consentRow}>
-        <Switch value={consent} onValueChange={setConsent} trackColor={{ true: colors.primary }} />
-        <Text style={styles.consent}>{t(language, 'consentAudio')}</Text>
-      </View>
+
+      <Card>
+        <LanguagePicker
+          languages={langs.data?.languages ?? []}
+          value={language}
+          onChange={setLanguage}
+          onPreview={(lang) => speak(lang.native_name, lang.code)}
+        />
+      </Card>
+
+      <Card style={styles.consentCard}>
+        <View style={styles.consentRow}>
+          <View style={styles.consentCopy}>
+            <Text style={styles.consentTitle}>{t(language, 'consentAudio')}</Text>
+            <Text style={styles.consentHint}>Optional. Helps improve recognition for your language.</Text>
+          </View>
+          <Switch value={consent} onValueChange={setConsent} trackColor={{ true: colors.primary }} />
+        </View>
+      </Card>
+
       <PrimaryButton label={t(language, 'start')} onPress={onStart} disabled={loading} />
-    </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { padding: space[5], gap: space[4] },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
-  lead: { fontSize: typeScale.lg, color: colors.ink, marginBottom: space[3] },
-  consentRow: { flexDirection: 'row', alignItems: 'center', gap: space[3], marginTop: space[4] },
-  consent: { flex: 1, fontSize: typeScale.body, color: colors.inkMuted },
+  consentCard: { paddingVertical: space[4] },
+  consentRow: { flexDirection: 'row', alignItems: 'center', gap: space[4] },
+  consentCopy: { flex: 1, gap: space[1] },
+  consentTitle: { ...typography.body, fontFamily: typography.h3.fontFamily },
+  consentHint: { ...typography.caption },
 });

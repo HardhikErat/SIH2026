@@ -1,29 +1,42 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, radius, space, typeScale } from '../theme';
+import { colors, fonts, radius, space, typeScale } from '../theme';
 
 export function PrimaryButton({
   label,
   onPress,
   disabled,
   variant = 'primary',
+  compact,
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary';
+  variant?: 'primary' | 'secondary' | 'ghost';
+  compact?: boolean;
 }) {
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={[
+      style={({ pressed }) => [
         styles.btn,
+        compact && styles.compact,
         variant === 'secondary' && styles.sec,
+        variant === 'ghost' && styles.ghost,
         disabled && styles.off,
+        pressed && !disabled && styles.pressed,
       ]}
       accessibilityRole="button"
     >
-      <Text style={[styles.text, variant === 'secondary' && styles.secText]}>{label}</Text>
+      <Text
+        style={[
+          styles.text,
+          variant === 'secondary' && styles.secText,
+          variant === 'ghost' && styles.ghostText,
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -36,10 +49,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: space[5],
-    marginVertical: space[2],
+    marginVertical: space[1],
   },
-  sec: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  compact: {
+    minHeight: 44,
+    paddingHorizontal: space[4],
+  },
+  sec: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  ghost: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+  },
   off: { opacity: 0.45 },
-  text: { color: colors.surface, fontSize: typeScale.md, fontWeight: '700' },
+  pressed: { opacity: 0.9 },
+  text: {
+    color: colors.surfaceElevated,
+    fontSize: typeScale.md,
+    fontFamily: fonts.bodySemiBold,
+  },
   secText: { color: colors.ink },
+  ghostText: { color: colors.primary },
 });

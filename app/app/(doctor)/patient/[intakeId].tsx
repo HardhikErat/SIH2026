@@ -1,19 +1,22 @@
 import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { api, DoctorIntake } from '../../../shared/api/client';
+import { AppHeader } from '../../../shared/components/AppHeader';
+import { Card } from '../../../shared/components/Card';
 import { EditableField } from '../../../shared/components/EditableField';
 import { FlagBadge } from '../../../shared/components/FlagBadge';
 import { PrimaryButton } from '../../../shared/components/PrimaryButton';
+import { Screen } from '../../../shared/components/Screen';
+import { StatusBanner } from '../../../shared/components/StatusBanner';
 import { useSession } from '../../../shared/store/session';
-import { colors, space, typeScale } from '../../../shared/theme';
+import { colors, space, typography } from '../../../shared/theme';
 
 export default function DoctorPatientDetail() {
   const { intakeId } = useLocalSearchParams<{ intakeId: string }>();
   const { doctorToken } = useSession();
   const [ackHigh, setAckHigh] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   const detail = useQuery({
     queryKey: ['intake', intakeId, doctorToken],
@@ -41,7 +44,7 @@ export default function DoctorPatientDetail() {
   if (detail.isLoading || !detail.data) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.primary} />
+        <ActivityIndicator color={colors.primary} size="large" />
       </View>
     );
   }
@@ -61,45 +64,52 @@ export default function DoctorPatientDetail() {
       return;
     }
     await api.verify(intakeId!, doctorToken!, high);
-    setSaved(true);
     router.replace('/(doctor)/queue');
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.wrap}>
+    <Screen doctor>
+      <AppHeader
+        eyebrow="Patient summary"
+        title={String(intake.structured_fields?.display_name ?? 'Patient intake')}
+        subtitle={intake.ai_summary}
+      />
+
       {high ? (
-        <View style={styles.banner}>
-          <FlagBadge type="priority" severity="HIGH" label="Urgent priority flag — review before verify" />
-        </View>
+        <StatusBanner tone="error">Urgent priority flag — review before Verify & Save</StatusBanner>
       ) : null}
-      <Text style={styles.summary}>{intake.ai_summary}</Text>
+
       {(intake.missing_information ?? []).map((m: string) => (
         <FlagBadge key={m} type="missing" label={`Missing: ${m}`} />
       ))}
-      <EditableField
-        label="Chief complaint"
-        value={local.chief_complaint ?? ''}
-        source={verified ? 'DOCTOR_VERIFIED' : 'AI_GENERATED'}
-        onChange={(v: string) => onSaveField('chief_complaint', v)}
-      />
-      <EditableField
-        label="Duration"
-        value={local.duration ?? ''}
-        source={verified ? 'DOCTOR_VERIFIED' : 'AI_GENERATED'}
-        onChange={(v: string) => onSaveField('duration', v)}
-      />
-      <EditableField
-        label="Medications"
-        value={local.medications ?? ''}
-        source={verified ? 'DOCTOR_VERIFIED' : 'AI_GENERATED'}
-        onChange={(v: string) => onSaveField('medications', v)}
-      />
-      <EditableField
-        label="Allergies"
-        value={local.allergies ?? ''}
-        source={verified ? 'DOCTOR_VERIFIED' : 'AI_GENERATED'}
-        onChange={(v: string) => onSaveField('allergies', v)}
-      />
+
+      <Card style={styles.fieldsCard}>
+        <EditableField
+          label="Chief complaint"
+          value={local.chief_complaint ?? ''}
+          source={verified ? 'DOCTOR_VERIFIED' : 'AI_GENERATED'}
+          onChange={(v: string) => onSaveField('chief_complaint', v)}
+        />
+        <EditableField
+          label="Duration"
+          value={local.duration ?? ''}
+          source={verified ? 'DOCTOR_VERIFIED' : 'AI_GENERATED'}
+          onChange={(v: string) => onSaveField('duration', v)}
+        />
+        <EditableField
+          label="Medications"
+          value={local.medications ?? ''}
+          source={verified ? 'DOCTOR_VERIFIED' : 'AI_GENERATED'}
+          onChange={(v: string) => onSaveField('medications', v)}
+        />
+        <EditableField
+          label="Allergies"
+          value={local.allergies ?? ''}
+          source={verified ? 'DOCTOR_VERIFIED' : 'AI_GENERATED'}
+          onChange={(v: string) => onSaveField('allergies', v)}
+        />
+      </Card>
+
       {!verified ? (
         <PrimaryButton
           label={high && !ackHigh ? 'Acknowledge urgent flag' : 'Verify & Save'}
@@ -108,14 +118,12 @@ export default function DoctorPatientDetail() {
       ) : (
         <Text style={styles.ok}>Verified</Text>
       )}
-    </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { padding: space[4], gap: space[3], backgroundColor: colors.surface },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  banner: { backgroundColor: colors.surfaceAlt, padding: space[3], borderRadius: 12 },
-  summary: { fontSize: typeScale.body, color: colors.ink, lineHeight: 24 },
-  ok: { color: colors.flagLow, fontSize: typeScale.md, fontWeight: '700', marginTop: space[4] },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  fieldsCard: { gap: space[2] },
+  ok: { ...typography.h3, color: colors.flagLow, textAlign: 'center', marginTop: space[4] },
 });

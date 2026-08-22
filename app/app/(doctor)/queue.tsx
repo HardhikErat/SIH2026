@@ -2,10 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { api } from '../../shared/api/client';
+import { AppHeader } from '../../shared/components/AppHeader';
 import { NextPatientButton } from '../../shared/components/NextPatientButton';
 import { PatientQueueCard } from '../../shared/components/PatientQueueCard';
+import { Screen } from '../../shared/components/Screen';
 import { useSession } from '../../shared/store/session';
-import { colors, space, typeScale } from '../../shared/theme';
+import { colors, space, typography } from '../../shared/theme';
 
 export default function DoctorQueue() {
   const { doctorToken } = useSession();
@@ -24,7 +26,7 @@ export default function DoctorQueue() {
   if (queue.isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={colors.primary} />
+        <ActivityIndicator color={colors.primary} size="large" />
       </View>
     );
   }
@@ -33,27 +35,34 @@ export default function DoctorQueue() {
   const next = queue.data?.next_patient;
 
   return (
-    <View style={styles.wrap}>
+    <Screen doctor scroll={false} contentStyle={styles.content}>
+      <AppHeader
+        eyebrow="Queue"
+        title="Who is next?"
+        subtitle={`${items.length} patient${items.length === 1 ? '' : 's'} waiting for review.`}
+      />
       <NextPatientButton
         disabled={!next}
         onPress={() => next && router.push(`/(doctor)/patient/${next.intake_id}`)}
       />
-      <Text style={styles.h}>Waiting patients ({items.length})</Text>
       <FlatList
         data={items}
         keyExtractor={(i) => i.intake_id}
+        style={styles.list}
+        contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <PatientQueueCard patient={item} onSelect={() => router.push(`/(doctor)/patient/${item.intake_id}`)} />
         )}
-        ListEmptyComponent={<Text style={styles.empty}>No patients waiting.</Text>}
+        ListEmptyComponent={<Text style={styles.empty}>No patients waiting. New intakes will appear here.</Text>}
       />
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, padding: space[4], backgroundColor: colors.surface },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  h: { fontSize: typeScale.md, color: colors.ink, fontWeight: '600', marginVertical: space[3] },
-  empty: { color: colors.inkMuted, fontSize: typeScale.body, marginTop: space[5], textAlign: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  content: { flex: 1, gap: space[4] },
+  list: { flex: 1, width: '100%' },
+  listContent: { paddingBottom: space[6] },
+  empty: { ...typography.bodyMuted, marginTop: space[6], textAlign: 'center' },
 });
