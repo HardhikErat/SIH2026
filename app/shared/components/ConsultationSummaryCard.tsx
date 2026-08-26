@@ -49,13 +49,35 @@ export function ConsultationSummaryCard({ summary, language }: Props) {
         </View>
       )}
 
+      {summary.severity && (
+        <View style={styles.section}>
+          <Text style={styles.label}>Severity</Text>
+          <Text style={styles.text}>{String(summary.severity)}</Text>
+        </View>
+      )}
+
+      {summary.current_medications && summary.current_medications.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.label}>Medications</Text>
+          {summary.current_medications.map((m: string, i: number) => (
+            <Text key={i} style={styles.bullet}>• {m}</Text>
+          ))}
+        </View>
+      )}
+
+      {summary.allergies && summary.allergies !== 'unknown' && (
+        <View style={styles.section}>
+          <Text style={styles.label}>Allergies</Text>
+          <Text style={styles.text}>{summary.allergies === 'none' ? 'None reported' : String(summary.allergies)}</Text>
+        </View>
+      )}
+
       {summary.medical_history && summary.medical_history.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.label}>Medical History & Allergies</Text>
+          <Text style={styles.label}>Medical History</Text>
           {summary.medical_history.map((m: string, i: number) => (
             <Text key={i} style={styles.bullet}>• {m}</Text>
           ))}
-          {summary.allergies && <Text style={styles.bullet}>• Allergies: {summary.allergies}</Text>}
         </View>
       )}
 

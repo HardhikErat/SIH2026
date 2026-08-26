@@ -30,11 +30,22 @@ import { colors, fonts, layout, radius, space, typography } from '../../../share
 
 export default function IntakeScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
-  const { token, language, turns, chips, addTurns, phase, consultationSummary } = useSession();
+  const {
+    token,
+    language,
+    turns,
+    chips,
+    addTurns,
+    phase,
+    consultationSummary,
+    conversationComplete,
+  } = useSession();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  /** After "Continue Talking", stay in chat — don't auto-jump back to summary. */
+  const [followUpMode, setFollowUpMode] = useState(false);
   const turnCounter = useRef(1);
   const { isRecording, start: startVoice, stop: stopVoice } = useVoiceInput({ language, token });
   const transition = useMotionTransition();
@@ -62,7 +73,11 @@ export default function IntakeScreen() {
         );
         speak(res.ai_message, language);
         setText('');
-        if ((res.ready_for_confirm || res.conversation_complete) && res.consultation_summary) setReady(true);
+        const complete = Boolean(res.ready_for_confirm || res.conversation_complete);
+        // First-time completion opens summary. Follow-up chat stays open; user opens summary manually.
+        if (complete && res.consultation_summary && !followUpMode) {
+          setReady(true);
+        }
       } catch (e) {
         const msg = e instanceof ApiError ? e.message : t(language, 'retrying');
         setError(msg);
@@ -70,7 +85,7 @@ export default function IntakeScreen() {
         setBusy(false);
       }
     },
-    [token, sessionId, language, addTurns],
+    [token, sessionId, language, addTurns, followUpMode],
   );
 
   const onMicStart = async () => {
@@ -190,13 +205,29 @@ export default function IntakeScreen() {
                 />
                 <PrimaryButton
                   label={t(language, 'continueTalking') || 'Continue Talking'}
-                  onPress={() => setReady(false)}
+                  onPress={() => {
+                    setReady(false);
+                    setFollowUpMode(true);
+                  }}
                   variant="secondary"
                 />
               </View>
             </MotionView>
           ) : null}
         </AnimatePresence>
+
+        {!ready && followUpMode && (conversationComplete || phase === 'completed') && consultationSummary ? (
+          <View style={styles.followUpBar}>
+            <PrimaryButton
+              label={t(language, 'viewSummary') || 'View updated summary'}
+              onPress={() => {
+                setFollowUpMode(false);
+                setReady(true);
+              }}
+              variant="secondary"
+            />
+          </View>
+        ) : null}
 
         {!ready && (
           <View style={styles.composer}>
@@ -270,6 +301,7 @@ const styles = StyleSheet.create({
   emptyBody: { ...typography.bodyMuted, textAlign: 'center' },
   bannerWrap: { marginBottom: space[3] },
   readyWrap: { marginBottom: space[3] },
+  followUpBar: { marginBottom: space[3] },
   actionRow: { gap: space[3], marginTop: space[4] },
   composer: {
     backgroundColor: colors.white,

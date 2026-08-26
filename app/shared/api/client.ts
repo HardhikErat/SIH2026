@@ -122,6 +122,7 @@ export type TurnResponse = {
   next_question?: { field: string; question_text?: Record<string, string> } | null;
   ready_for_confirm?: boolean;
   conversation_complete?: boolean;
+  summary_updated?: boolean;
   conversation_memory?: {
     collected_information: Record<string, unknown>;
     asked_questions: string[];

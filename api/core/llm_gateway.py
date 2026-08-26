@@ -466,13 +466,16 @@ class LLMGateway:
         return _strip_clinical_leaks(raw.strip().strip('"'))
 
     def generate_consultation_summary(self, fields: CollectedFields, language: str) -> dict[str, Any]:
-        """Generates a structured consultation summary matching the ConsultationSummary schema."""
+        """Structured summary grounded in collected fields (LLM may polish wording)."""
         from core.schema import ConsultationSummary
-        
+        from core.summary_builder import build_summary_from_fields, merge_summary_with_fields
+
+        grounded = build_summary_from_fields(fields, language)
         system = (
             f"You are a clinical assistant. Generate a structured consultation summary for the patient in language code {language}. "
             "Output ONLY valid JSON matching the provided schema. "
-            "Include patient details, main complaint, symptoms, duration, medical history, and observations. "
+            "Include patient details, main complaint, symptoms, duration, medications, allergies, and observations. "
+            "Use ONLY facts from collected_fields — do not invent symptoms or medicines. "
             "Recommend sensible next steps (e.g., 'Rest', 'Drink fluids', 'Consult a doctor for evaluation'). "
             "Do NOT diagnose or prescribe medications."
         )
@@ -486,19 +489,11 @@ class LLMGateway:
         try:
             raw = self._complete_with_failover(system, user, json_mode=True)
             data = _extract_json(raw)
-            # Ensure the disclaimer is present
             summary = ConsultationSummary.model_validate(data)
-            return summary.model_dump()
+            return merge_summary_with_fields(summary.model_dump(), fields, language)
         except Exception as exc:
             logger.warning("Failed to generate structured consultation summary: %s", exc)
-            # Fallback
-            return ConsultationSummary(
-                patient_name=fields.display_name,
-                patient_age=fields.age,
-                patient_gender=fields.gender if fields.gender != "unknown" else None,
-                main_complaint=fields.chief_complaint,
-            ).model_dump()
-
+            return grounded
     def phrase_reply(
         self,
         utterance: str,

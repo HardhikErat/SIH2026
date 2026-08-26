@@ -251,12 +251,18 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
     phase = detect_phase(merged).value
 
     summary = None
+    summary_updated = False
     if done:
         phase = "completed"
-        if not session.get("consultation_summary"):
+        had_new_facts = bool(delta)
+        prior_summary = session.get("consultation_summary")
+        # Regenerate when first completing OR patient added/changed facts after "Continue talking"
+        if not prior_summary or had_new_facts:
             summary = gateway.generate_consultation_summary(merged, language)
+            summary_updated = True
         else:
-            summary = session.get("consultation_summary")
+            summary = prior_summary
+            summary_updated = False
 
     session["phase"] = phase
     if summary:
@@ -274,6 +280,7 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
         "next_question": nxt.model_dump() if nxt else None,
         "ready_for_confirm": done,
         "conversation_complete": done,
+        "summary_updated": summary_updated,
         "conversation_memory": memory.model_dump(),
         "phase": phase,
         "consultation_summary": summary,

@@ -59,7 +59,8 @@ export const useSession = create<SessionState>((set) => ({
       turns: [...s.turns, { speaker: 'patient', text: patient }, { speaker: 'ai', text: ai }],
       chips: chips ?? s.chips,
       phase: phase ?? s.phase,
-      consultationSummary: summary ?? s.consultationSummary,
+      // Always apply a freshly returned summary (including after Continue Talking)
+      consultationSummary: summary !== undefined && summary !== null ? summary : s.consultationSummary,
       conversationComplete: conversationComplete ?? s.conversationComplete,
     })),
   setDoctorToken: (doctorToken) => set({ doctorToken }),
