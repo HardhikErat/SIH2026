@@ -36,9 +36,8 @@ export default function IntakeScreen() {
     turns,
     chips,
     addTurns,
-    phase,
+    appendAiMessage,
     consultationSummary,
-    conversationComplete,
   } = useSession();
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -47,8 +46,26 @@ export default function IntakeScreen() {
   /** After "Continue Talking", stay in chat — don't auto-jump back to summary. */
   const [followUpMode, setFollowUpMode] = useState(false);
   const turnCounter = useRef(1);
+  const listRef = useRef<FlatList>(null);
   const { isRecording, start: startVoice, stop: stopVoice } = useVoiceInput({ language, token });
   const transition = useMotionTransition();
+
+  const openSummary = useCallback(() => {
+    setFollowUpMode(false);
+    setReady(true);
+  }, []);
+
+  const onContinueTalking = useCallback(() => {
+    setReady(false);
+    setFollowUpMode(true);
+    const prompt = t(language, 'continuePrompt');
+    appendAiMessage(prompt);
+    speak(prompt, language);
+    // Scroll to the new prompt after layout
+    requestAnimationFrame(() => {
+      listRef.current?.scrollToEnd({ animated: true });
+    });
+  }, [language, appendAiMessage]);
 
   const sendTurn = useCallback(
     async (content: string) => {
@@ -153,9 +170,13 @@ export default function IntakeScreen() {
         ) : null}
 
         <FlatList
+          ref={listRef}
           data={turns}
           keyExtractor={(_, i) => String(i)}
           contentContainerStyle={styles.list}
+          onContentSizeChange={() => {
+            if (followUpMode) listRef.current?.scrollToEnd({ animated: true });
+          }}
           renderItem={({ item, index }) => (
             <ChatBubble
               speaker={item.speaker}
@@ -205,10 +226,7 @@ export default function IntakeScreen() {
                 />
                 <PrimaryButton
                   label={t(language, 'continueTalking') || 'Continue Talking'}
-                  onPress={() => {
-                    setReady(false);
-                    setFollowUpMode(true);
-                  }}
+                  onPress={onContinueTalking}
                   variant="secondary"
                 />
               </View>
@@ -216,14 +234,11 @@ export default function IntakeScreen() {
           ) : null}
         </AnimatePresence>
 
-        {!ready && followUpMode && (conversationComplete || phase === 'completed') && consultationSummary ? (
+        {!ready && followUpMode ? (
           <View style={styles.followUpBar}>
             <PrimaryButton
-              label={t(language, 'viewSummary') || 'View updated summary'}
-              onPress={() => {
-                setFollowUpMode(false);
-                setReady(true);
-              }}
+              label={t(language, 'backToSummary') || 'Back to summary'}
+              onPress={openSummary}
               variant="secondary"
             />
           </View>

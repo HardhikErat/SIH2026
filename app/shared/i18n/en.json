@@ -24,6 +24,8 @@
   "confirmSubmit": "Confirm & Submit",
   "continueTalking": "Continue Talking",
   "viewSummary": "View updated summary",
+  "backToSummary": "Back to summary",
+  "continuePrompt": "Oh — did you miss something? Tell me what you'd like to add or change.",
   "consultationSummary": "Consultation Summary",
   "patientDetails": "Patient Details",
   "mainComplaint": "Main Complaint",

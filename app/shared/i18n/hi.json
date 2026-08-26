@@ -24,6 +24,8 @@
   "confirmSubmit": "पुष्टि करें और सबमिट करें",
   "continueTalking": "बातचीत जारी रखें",
   "viewSummary": "अपडेटेड सारांश देखें",
+  "backToSummary": "सारांश पर वापस जाएँ",
+  "continuePrompt": "अरे — कुछ छूट गया क्या? बताइए क्या जोड़ना या बदलना है।",
   "consultationSummary": "परामर्श सारांश",
   "patientDetails": "रोगी का विवरण",
   "mainComplaint": "मुख्य समस्या",

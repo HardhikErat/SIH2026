@@ -25,6 +25,7 @@ type SessionState = {
     summary?: Record<string, unknown> | null,
     conversationComplete?: boolean,
   ) => void;
+  appendAiMessage: (text: string) => void;
   setDoctorToken: (token: string | null) => void;
   reset: () => void;
 };
@@ -59,9 +60,12 @@ export const useSession = create<SessionState>((set) => ({
       turns: [...s.turns, { speaker: 'patient', text: patient }, { speaker: 'ai', text: ai }],
       chips: chips ?? s.chips,
       phase: phase ?? s.phase,
-      // Always apply a freshly returned summary (including after Continue Talking)
       consultationSummary: summary !== undefined && summary !== null ? summary : s.consultationSummary,
       conversationComplete: conversationComplete ?? s.conversationComplete,
+    })),
+  appendAiMessage: (text) =>
+    set((s) => ({
+      turns: [...s.turns, { speaker: 'ai', text }],
     })),
   setDoctorToken: (doctorToken) => set({ doctorToken }),
   reset: () =>
