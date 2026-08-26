@@ -46,6 +46,14 @@ export default function LandingScreen() {
           accent="admin"
           onPress={() => router.push('/(admin)/camp-setup')}
         />
+        <RoleCard
+          title="Meet the intake robot"
+          description="The visor follows your pointer — pupils stay clipped inside the tuned eye sockets."
+          statusLabel="Mascot"
+          icon={<BrandMark size={26} />}
+          accent="patient"
+          onPress={() => router.push('/robot')}
+        />
       </Stagger>
 
       <View style={styles.stats}>

@@ -31,6 +31,24 @@ npm start
 
 Demo doctor login: `doctor@camp.local` / `camp-demo`
 
+### Intake robot (pointer-tracking visor)
+
+Reusable Expo component: `app/shared/components/RobotEyes.tsx`.
+
+Eye coordinates are the tuned SVG values on a **900×1000** canvas (do not recalculate): left pupil `(423, 285)`, right pupil `(642, 280)`, max travel **20**. Preview at `/robot`.
+
+```powershell
+cd app
+npx expo install react-native-svg
+npm start
+```
+
+Then open the app and choose **Meet the intake robot**, or visit `/robot`.
+
+### Playwright MCP (Cursor)
+
+This repo ships `.cursor/mcp.json` so Cursor can attach the official Playwright MCP server (`@playwright/mcp`). After pulling this branch, reload MCP in Cursor Settings → MCP if the Playwright tools do not appear.
+
 ## Safety architecture
 
 - Priority flags, missing-info, and contradictions are **Rule Engine only** (see `api/core/rule_engine.py`).

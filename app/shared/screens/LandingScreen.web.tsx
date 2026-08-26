@@ -98,6 +98,14 @@ const PORTALS = [
     href: '/(admin)/camp-setup',
     accent: colors.gold500,
   },
+  {
+    role: 'Mascot',
+    title: 'Meet the intake robot',
+    body: 'Pointer-tracking visor with clipped glowing pupils on the 900×1000 robot canvas.',
+    cta: 'Open robot',
+    href: '/robot',
+    accent: '#00f0ff',
+  },
 ];
 
 export default function LandingScreen() {
@@ -296,6 +304,14 @@ function SiteNav() {
           <a href="#how" style={navLink}>
             How it works
           </a>
+          <motion.button
+            type="button"
+            style={navLink}
+            whileHover={{ opacity: 0.75 }}
+            onClick={() => router.push('/robot')}
+          >
+            Robot
+          </motion.button>
           <motion.button
             type="button"
             style={navCta}
