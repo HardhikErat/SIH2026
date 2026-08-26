@@ -195,6 +195,15 @@ class ExtractionDelta(BaseModel):
     onset: str | None = None
     associated_symptoms_checked: ClinicalTriState | None = None
 
+    @field_validator("severity", mode="before")
+    @classmethod
+    def normalize_severity_case(cls, v: Any) -> Any:
+        if isinstance(v, str):
+            key = v.strip().casefold()
+            if key in ("mild", "moderate", "severe", "unknown"):
+                return key
+        return v
+
     @model_validator(mode="before")
     @classmethod
     def reject_clinical_judgment_fields(cls, data: Any) -> Any:
