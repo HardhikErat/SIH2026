@@ -31,11 +31,11 @@ npm start
 
 Demo doctor login: `doctor@camp.local` / `camp-demo`
 
-### Intake robot (pointer-tracking visor)
+### Intake robot (hero visor)
 
 Reusable Expo component: `app/shared/components/RobotEyes.tsx`.
 
-Eye coordinates are the tuned SVG values on a **900×1000** canvas (do not recalculate): left pupil `(423, 285)`, right pupil `(642, 280)`, max travel **20**. Preview at `/robot`.
+The mascot lives in the landing hero (not a separate page). Eye coordinates are the tuned SVG values on a **900×1000** canvas (do not recalculate): left pupil `(423, 285)`, right pupil `(642, 280)`, max travel **20**.
 
 ```powershell
 cd app
@@ -43,7 +43,7 @@ npx expo install react-native-svg
 npm start
 ```
 
-Then open the app and choose **Meet the intake robot**, or visit `/robot`.
+Open the landing page and move the pointer across the robot visor.
 
 ### Playwright MCP (Cursor)
 

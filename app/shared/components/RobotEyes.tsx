@@ -363,11 +363,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     overflow: 'hidden',
     aspectRatio: ROBOT_CANVAS.width / ROBOT_CANVAS.height,
-    backgroundColor: '#05080f',
+    backgroundColor: 'transparent',
   },
   flexHost: {
     width: '100%',
-    maxWidth: 560,
+    maxWidth: 520,
   },
   baseImage: {
     ...StyleSheet.absoluteFill,

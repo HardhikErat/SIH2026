@@ -61,7 +61,6 @@ export default function RootLayout() {
           }}
         >
           <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="robot" options={{ headerShown: false }} />
           <Stack.Screen name="(patient)" options={{ headerShown: false }} />
           <Stack.Screen name="(doctor)" options={{ headerShown: false }} />
           <Stack.Screen name="(admin)" options={{ headerShown: false }} />

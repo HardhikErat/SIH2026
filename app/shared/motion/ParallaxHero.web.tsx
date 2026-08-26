@@ -27,7 +27,7 @@ export function ParallaxHero({ children, style }: Props) {
         style={{
           position: 'absolute',
           inset: 0,
-          background: `linear-gradient(135deg, ${colors.heroGradientStart} 0%, ${colors.navy700} 45%, ${colors.teal700} 100%)`,
+          background: 'linear-gradient(180deg, #0f2a44 0%, #1c4a6e 55%, #163e5c 100%)',
           y,
           scale,
           opacity,

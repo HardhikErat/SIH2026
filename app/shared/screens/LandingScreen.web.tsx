@@ -99,24 +99,22 @@ const PORTALS = [
     href: '/(admin)/camp-setup',
     accent: colors.gold500,
   },
-  {
-    role: 'Mascot',
-    title: 'Meet the intake robot',
-    body: 'Pointer-tracking visor with clipped glowing pupils on the 900×1000 robot canvas.',
-    cta: 'Open robot',
-    href: '/robot',
-    accent: '#00f0ff',
-  },
 ];
 
 export default function LandingScreen() {
   return (
     <div style={{ background: colors.white, minHeight: '100vh' }}>
+      <style>{`
+        @media (max-width: 840px) {
+          .landing-hero-inner { grid-template-columns: 1fr !important; }
+          .landing-hero-robot { justify-self: center !important; max-width: 380px !important; order: -1; }
+        }
+      `}</style>
       <ScrollProgressBar />
       <SiteNav />
 
       <ParallaxHero style={{ minHeight: '92vh', display: 'flex', alignItems: 'center' }}>
-        <div style={heroInner}>
+        <div className="landing-hero-inner" style={heroInner}>
           <div style={heroCopy}>
           <ScrollReveal delay={0.05}>
             <div style={heroBadge}>
@@ -177,8 +175,8 @@ export default function LandingScreen() {
             </div>
           </ScrollReveal>
           </div>
-          <div style={heroRobot}>
-            <RobotEyes />
+          <div className="landing-hero-robot" style={heroRobot}>
+            <RobotEyes idPrefix="landing" />
           </div>
         </div>
       </ParallaxHero>
@@ -312,14 +310,6 @@ function SiteNav() {
           </a>
           <motion.button
             type="button"
-            style={navLink}
-            whileHover={{ opacity: 0.75 }}
-            onClick={() => router.push('/robot')}
-          >
-            Robot
-          </motion.button>
-          <motion.button
-            type="button"
             style={navCta}
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
@@ -335,13 +325,13 @@ function SiteNav() {
 
 /* ── Styles ── */
 const heroInner: React.CSSProperties = {
-  maxWidth: 1120,
+  maxWidth: 1180,
   margin: '0 auto',
-  padding: '120px 24px 80px',
+  padding: '128px 24px 72px',
   width: '100%',
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-  gap: 40,
+  gridTemplateColumns: 'minmax(0, 1.15fr) minmax(280px, 0.9fr)',
+  gap: 32,
   alignItems: 'center',
 };
 
@@ -351,8 +341,8 @@ const heroCopy: React.CSSProperties = {
 
 const heroRobot: React.CSSProperties = {
   width: '100%',
-  maxWidth: 420,
-  justifySelf: 'center',
+  maxWidth: 520,
+  justifySelf: 'end',
 };
 
 const heroBadge: React.CSSProperties = {
@@ -418,8 +408,8 @@ const ctaPrimary: React.CSSProperties = {
   border: 'none',
   cursor: 'pointer',
   color: colors.white,
-  background: `linear-gradient(135deg, ${colors.teal500} 0%, ${colors.teal700} 100%)`,
-  boxShadow: '0 8px 24px rgba(14,107,99,0.35)',
+  background: colors.statusOk,
+  boxShadow: '0 8px 24px rgba(45,122,79,0.35)',
 };
 
 const ctaSecondary: React.CSSProperties = {
