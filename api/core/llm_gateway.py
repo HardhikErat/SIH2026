@@ -20,12 +20,23 @@ logger = logging.getLogger(__name__)
 
 EXTRACTION_SCHEMA = ExtractionDelta.model_json_schema()
 
-SYSTEM_PROMPT = """You are a clinical intake documentation assistant. You extract
-structured information from what a patient says. You do NOT diagnose, do NOT suggest
-treatment, do NOT express clinical opinions. You never assign priority, urgency, or
-triage flags.
+SYSTEM_PROMPT = """You are a context-aware clinical intake documentation assistant.
+You extract structured information from what a patient says. You do NOT diagnose, do NOT
+suggest treatment, do NOT express clinical opinions. You never assign priority, urgency,
+or triage flags.
 
 Output contract: emit ONLY valid JSON matching the extraction schema. No prose.
+
+Context rules (critical):
+1) Read collected_fields and recent_turns carefully. Never invent facts the patient did not state.
+2) Extract EVERY fact in the latest utterance — patients often pack multiple answers in one message.
+3) If the patient corrects earlier information (e.g. "actually 5 days"), return the corrected value.
+4) Understand Hindi, Hinglish, and English variants: "4 din se", "kal se", "yesterday se",
+   "bimaar", "bukhar", "for the past week", "since Monday".
+5) Short answers like "yes", "no", "4 din", "kal se" still count — map them to the pending field
+   when recent_turns show what was asked.
+6) Do not omit duration when the patient already said how long they have been sick.
+7) Map symptoms to symptoms[] AND set matching clinical flags (fever/headache/etc.) when stated.
 
 If information is not stated, do not guess. Omit the field or mark it `unknown`.
 Never infer a negative (e.g. 'no allergies') unless the patient explicitly said so.
@@ -42,16 +53,24 @@ Return only the delta — fields newly stated or updated this turn.
 Few-shot examples:
 1) Patient: "I have had bukhar for 3 days"
    {{"chief_complaint":"SYM_FEVER","complaint_category":"fever","fever":"true","duration":"3 days","duration_days":3}}
-2) Patient: "sine mein dard, saans lene mein takleef"
+2) Patient: "4 din se bimaar hu"
+   {{"duration":"4 days","duration_days":4,"chief_complaint":"SYM_FEVER","complaint_category":"default"}}
+3) Patient: "I've been sick for 4 days and I have a headache since yesterday."
+   {{"duration":"4 days","duration_days":4,"chief_complaint":"SYM_HEADACHE","complaint_category":"headache","headache":"true","symptoms":[{{"concept_id":"SYM_HEADACHE","duration":"1 day"}}]}}
+4) Patient: "sine mein dard, saans lene mein takleef"
    {{"chief_complaint":"SYM_CHEST_PAIN","complaint_category":"chest_pain","chest_pain":"true","breathing_difficulty":"true"}}
-3) Patient: "fever and cough, mild headache"
-   {{"chief_complaint":"SYM_FEVER","complaint_category":"fever","fever":"true","symptoms":[{{"concept_id":"SYM_COUGH","severity":"unknown"}},{{"concept_id":"SYM_HEADACHE","severity":"mild"}}]}}
-4) Earlier medications none; now "I took my BP tablet"
+5) Patient: "fever and cough, mild headache"
+   {{"chief_complaint":"SYM_FEVER","complaint_category":"fever","fever":"true","associated_symptoms_checked":"true","symptoms":[{{"concept_id":"SYM_COUGH","severity":"unknown"}},{{"concept_id":"SYM_HEADACHE","severity":"mild"}}]}}
+6) Earlier duration 4 days; now "Actually, it's been 5 days."
+   {{"duration":"5 days","duration_days":5}}
+7) Patient: "kal se headache hai"
+   {{"chief_complaint":"SYM_HEADACHE","complaint_category":"headache","headache":"true","duration":"1 day","duration_days":1}}
+8) Earlier medications none; now "I took my BP tablet"
    {{"medications":["BP tablet"],"takes_medication":"true"}}
-5) Patient: "I don't know about allergies"
-   {{"allergies":"unknown","has_allergy":"unknown"}}
-6) Patient: "no medicines"
+9) Patient: "no medicines"
    {{"medications":"none","takes_medication":"false"}}
+10) Patient: "I don't know about allergies"
+   {{"allergies":"unknown","has_allergy":"unknown"}}
 """
 
 SUMMARY_PROMPT = """Given this structured intake JSON, write a 3-5 sentence factual
@@ -65,15 +84,18 @@ Do not add facts that are not in the JSON. Missing fields should be omitted, not
 """
 
 REPLY_PROMPT = """INTAKE_REPLY_CONTRACT
-You are a calm clinical intake assistant speaking to a patient in language code {language}.
-You do NOT diagnose, prescribe, suggest treatment, or assign urgency.
+You are a calm, context-aware clinical intake assistant speaking to a patient in language
+code {language}. You do NOT diagnose, prescribe, suggest treatment, or assign urgency.
 Write 1-3 short spoken sentences only — no markdown, no bullet lists, no JSON.
 
 Rules:
 1) Briefly acknowledge what the patient just said, using their words where possible.
-2) Ask exactly the next question provided. Do not invent extra clinical questions.
-3) If next_field is NONE, thank them and say you will show a summary to check.
-4) Reply only in the patient's language. Use English only if language starts with en.
+2) Ask exactly the next question provided (next_hint). Do not invent extra clinical questions.
+3) NEVER ask for information already present in collected_fields (especially duration,
+   symptoms, medications, allergies). If next_field is already answered, do not re-ask it.
+4) If next_field is NONE, thank them and say you will show a summary to check.
+5) Reply only in the patient's language. Use English only if language starts with en.
+6) Sound like a helpful human assistant, not a rigid questionnaire.
 """
 
 DIAGNOSIS_LEAK = re.compile(
@@ -188,14 +210,32 @@ class KeywordStubProvider:
         if "clinical summary" in system.lower() or "3-5 sentence" in system.lower():
             return _stub_summary(user)
         utterance = user
+        collected: dict[str, Any] = {}
         try:
             payload = json.loads(user)
             if isinstance(payload, dict) and payload.get("patient_utterance"):
                 utterance = str(payload["patient_utterance"])
+                collected = payload.get("collected_fields") or {}
         except json.JSONDecodeError:
             pass
         text = utterance.casefold()
         delta: dict[str, Any] = {}
+
+        sick_like = any(
+            w in text
+            for w in (
+                "bimaar",
+                "bimar",
+                "बीमार",
+                "sick",
+                "ill",
+                "unwell",
+                "takleef",
+                "taklif",
+                "तकलीफ",
+            )
+        )
+
         if any(w in text for w in ("bukhar", "fever", "ताप", "बुखार", "tap ")):
             delta.update(
                 {
@@ -214,33 +254,48 @@ class KeywordStubProvider:
             )
         if any(w in text for w in ("breath", "saans", "सांस", "श्वास", "cannot breathe", "can't breathe")):
             delta["breathing_difficulty"] = "true"
-        if any(w in text for w in ("headache", "sir dard", "सिर दर्द", "डोकेदुखी")):
+        if any(w in text for w in ("headache", "sir dard", "सिर दर्द", "डोकेदुखी", "head pain")):
             delta.setdefault("symptoms", []).append({"concept_id": "SYM_HEADACHE", "severity": "unknown"})
+            delta["headache"] = "true"
             if "chief_complaint" not in delta:
                 delta.update(
                     {
                         "chief_complaint": "SYM_HEADACHE",
                         "complaint_category": "headache",
-                        "headache": "true",
                     }
                 )
         if any(w in text for w in ("cough", "khansi", "खांसी", "खोकला")):
             delta.setdefault("symptoms", []).append({"concept_id": "SYM_COUGH", "severity": "unknown"})
             if "chief_complaint" not in delta:
                 delta.update({"chief_complaint": "SYM_COUGH", "complaint_category": "cough"})
+        if any(w in text for w in ("body pain", "badan dard", "बदन दर्द", "angdukh", "body ache")):
+            delta.setdefault("symptoms", []).append({"concept_id": "SYM_BODY_PAIN", "severity": "unknown"})
         if any(w in text for w in ("vomit", "ulti", "उल्टी")):
             delta["vomiting"] = "true"
-        m = re.search(r"(\d+)\s*(day|days|din|दिवस)", text)
-        if m:
-            days = int(m.group(1))
+
+        # Generic illness without a named symptom — keep as default complaint context
+        if sick_like and "chief_complaint" not in delta:
+            delta["complaint_category"] = delta.get("complaint_category") or "default"
+
+        # Duration: "4 days", "4 din", "kal se", "yesterday", "a week", bare corrections
+        days = _stub_parse_duration_days(text)
+        if days is not None:
             delta["duration"] = f"{days} days"
             delta["duration_days"] = days
+            # Per-symptom duration when headache mentioned with a shorter span
+            if "headache" in text or "sir dard" in text or "सिर दर्द" in text:
+                if "yesterday" in text or "kal se" in text or "कल से" in text:
+                    for item in delta.get("symptoms") or []:
+                        if item.get("concept_id") == "SYM_HEADACHE":
+                            item["duration"] = "1 day"
+
         if "severe" in text or "tez" in text or "तीव्र" in text:
             delta["severity"] = "severe"
         elif "mild" in text or "halki" in text or "हलकी" in text:
             delta["severity"] = "mild"
         elif "moderate" in text:
             delta["severity"] = "moderate"
+
         if "no medicine" in text or "no medicines" in text or "कोई दवाई नहीं" in text:
             delta["medications"] = "none"
             delta["takes_medication"] = "false"
@@ -255,11 +310,47 @@ class KeywordStubProvider:
             if "allerg" in text:
                 delta["allergies"] = "unknown"
                 delta["has_allergy"] = "unknown"
-        if "cough" in text or "headache" in text or "body pain" in text:
-            if delta.get("complaint_category") == "fever" or "fever" in text:
-                delta["associated_symptoms_checked"] = "true"
+
+        # Multiple symptoms alongside fever ⇒ associated symptoms already provided
+        has_assoc = any(
+            w in text for w in ("cough", "headache", "body pain", "khansi", "sir dard", "बदन")
+        )
+        if has_assoc and (
+            delta.get("complaint_category") == "fever"
+            or "fever" in text
+            or "bukhar" in text
+            or collected.get("complaint_category") == "fever"
+        ):
+            delta["associated_symptoms_checked"] = "true"
+
         return json.dumps(delta)
 
+
+def _stub_parse_duration_days(text: str) -> int | None:
+    """Parse duration from English / Hinglish / Hindi fragments."""
+    # Explicit day counts: "4 days", "4 din", "4 दिनों"
+    m = re.search(r"(\d+)\s*(?:day|days|din|दिवस|दिन|dino)", text)
+    if m:
+        return int(m.group(1))
+    # Correction fragments: "actually 5", "actually, it's been 5"
+    m = re.search(r"(?:actually|correction|sorry)\D{0,24}(\d+)\s*(?:day|days|din)?", text)
+    if m:
+        return int(m.group(1))
+    # Bare number when clearly a duration answer: "5 days." already handled; "5" alone
+    m = re.search(r"(?:^|\b)(\d{1,3})\s*(?:day|days|din)?(?:\s|$|\.)", text)
+    if m and any(w in text for w in ("day", "din", "actually", "been", "se ", "से")):
+        return int(m.group(1))
+    # Relative: yesterday / kal
+    if any(w in text for w in ("yesterday", "kal se", "कल से", "since yesterday")):
+        return 1
+    # Week
+    if any(w in text for w in ("a week", "1 week", "one week", "ek hafte", "एक हफ्ते", "hafte se")):
+        return 7
+    if re.search(r"(\d+)\s*(?:week|weeks|hafte|हफ्ते)", text):
+        m = re.search(r"(\d+)\s*(?:week|weeks|hafte|हफ्ते)", text)
+        if m:
+            return int(m.group(1)) * 7
+    return None
 
 def _stub_summary(user: str) -> str:
     try:
@@ -329,12 +420,19 @@ class LLMGateway:
         p = self.providers[0]
         return f"{p.name}:{p.model_id}"
 
-    def extract(self, utterance: str, collected: CollectedFields, language: str) -> ExtractionDelta:
+    def extract(
+        self,
+        utterance: str,
+        collected: CollectedFields,
+        language: str,
+        recent_turns: list[str] | None = None,
+    ) -> ExtractionDelta:
         system = SYSTEM_PROMPT.format(concepts=canonical_concept_prompt_block())
         user = json.dumps(
             {
                 "language": language,
                 "collected_fields": collected.model_dump(),
+                "recent_turns": recent_turns or [],
                 "patient_utterance": utterance,
             },
             ensure_ascii=False,

@@ -8,6 +8,12 @@ from pydantic import BaseModel, Field
 
 from auth.supabase_auth import require_patient
 from core.config import settings
+from core.conversation_memory import (
+    build_memory,
+    infer_implied_fields,
+    question_tracker_id,
+    recent_patient_utterances,
+)
 from core.errors import ApiException
 from core.llm_gateway import gateway
 from core.normalization import normalize_fields
@@ -46,6 +52,8 @@ def conversation_state(session_id: str, principal: dict = Depends(require_patien
         "collected_fields": session.get("collected_fields"),
         "turn_history": session.get("turn_history"),
         "language": session.get("language"),
+        "conversation_memory": session.get("conversation_memory"),
+        "phase": session.get("phase", "consultation"),
     }
 
 
@@ -70,6 +78,8 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
                 "next_question": session.get("pending_questions")[:1] if session.get("pending_questions") else None,
                 "phase": session.get("phase", "consultation"),
                 "consultation_summary": session.get("consultation_summary"),
+                "conversation_memory": session.get("conversation_memory"),
+                "conversation_complete": (session.get("phase") == "completed"),
             }
 
     language = body.language or session.get("language") or "en"
@@ -115,8 +125,10 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
         raise ApiException(400, "EMPTY_CONTENT", "Type or speak an answer to continue.")
 
     fields = CollectedFields.model_validate(session.get("collected_fields") or {})
+    asked_questions: list[str] = list(session.get("asked_questions") or [])
+    recent_turns = recent_patient_utterances(history)
     try:
-        delta_model = gateway.extract(utterance, fields, language)
+        delta_model = gateway.extract(utterance, fields, language, recent_turns=recent_turns)
     except Exception as exc:  # noqa: BLE001
         raise ApiException(
             502,
@@ -129,6 +141,7 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
     prior_turns = [TurnRecord.model_validate(t) for t in history if t.get("speaker") == "patient"]
     merged = fields.merge_delta(delta)
     merged, review_terms = normalize_fields(merged)
+    merged = infer_implied_fields(merged)
     rules = run_rule_engine(merged, delta=delta, turn_history=prior_turns, current_turn_id=body.turn_id)
 
     patient_turn = TurnRecord(
@@ -150,7 +163,12 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
         question_count,
         language=language,
         max_questions=settings.max_questions,
+        asked_questions=asked_questions,
     )
+    if nxt is not None:
+        tracker = question_tracker_id(nxt)
+        if tracker not in asked_questions:
+            asked_questions.append(tracker)
     hint = question_text(nxt, language) if nxt else None
     ai_text = gateway.phrase_reply(
         utterance,
@@ -173,6 +191,13 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
     }
     history.append(ai_turn)
 
+    memory = build_memory(
+        merged,
+        rules.missing_fields,
+        asked_questions,
+        conversation_complete=done,
+    )
+
     session["collected_fields"] = merged.model_dump()
     session["turn_history"] = history
     session["missing_fields"] = rules.missing_fields
@@ -180,10 +205,12 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
     session["priority_flag"] = rules.priority_flag.value
     session["pending_questions"] = [nxt.model_dump()] if nxt else []
     session["question_count"] = question_count
+    session["asked_questions"] = asked_questions
+    session["conversation_memory"] = memory.model_dump()
     session["model_version"] = gateway.model_version
     session["dictionary_review"] = review_terms
     phase = detect_phase(merged).value
-    
+
     summary = None
     if done:
         phase = "completed"
@@ -191,11 +218,11 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
             summary = gateway.generate_consultation_summary(merged, language)
         else:
             summary = session.get("consultation_summary")
-            
+
     session["phase"] = phase
     if summary:
         session["consultation_summary"] = summary
-        
+
     store.save_session(session)
 
     return {
@@ -207,6 +234,8 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
         "priority_flag": rules.priority_flag.value,
         "next_question": nxt.model_dump() if nxt else None,
         "ready_for_confirm": done,
+        "conversation_complete": done,
+        "conversation_memory": memory.model_dump(),
         "phase": phase,
         "consultation_summary": summary,
         "fact_chips": _chips(merged),
@@ -224,6 +253,10 @@ def _chips(fields: CollectedFields) -> list[dict[str, str]]:
         chips.append({"label": str(fields.duration), "field": "duration"})
     if fields.severity != "unknown":
         chips.append({"label": fields.severity, "field": "severity"})
+    if fields.headache == "true":
+        chips.append({"label": "Headache", "field": "headache"})
+    if fields.fever == "true" and (not fields.chief_complaint or fields.chief_complaint != "SYM_FEVER"):
+        chips.append({"label": "Fever", "field": "fever"})
     if fields.medications not in ("unknown", None) and fields.medications != []:
         chips.append({"label": str(fields.medications), "field": "medications"})
     return chips

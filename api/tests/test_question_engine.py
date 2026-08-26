@@ -2,8 +2,14 @@ from core.question_engine import MAX_QUESTIONS, select_next_question
 from core.schema import CollectedFields
 
 
+def _patient(**kwargs) -> CollectedFields:
+    base = dict(display_name="Ravi", age=30, gender="male")
+    base.update(kwargs)
+    return CollectedFields(**base)
+
+
 def test_does_not_reask_collected_field():
-    fields = CollectedFields(
+    fields = _patient(
         chief_complaint="SYM_FEVER",
         complaint_category="fever",
         duration="3 days",
@@ -15,7 +21,7 @@ def test_does_not_reask_collected_field():
 
 
 def test_chest_pain_branches_to_breathing():
-    fields = CollectedFields(
+    fields = _patient(
         chief_complaint="SYM_CHEST_PAIN",
         complaint_category="chest_pain",
         duration="1 day",
@@ -27,13 +33,13 @@ def test_chest_pain_branches_to_breathing():
 
 
 def test_max_question_cap_returns_none():
-    fields = CollectedFields(chief_complaint="SYM_FEVER", complaint_category="fever")
+    fields = _patient(chief_complaint="SYM_FEVER", complaint_category="fever")
     q = select_next_question(fields, ["duration"], question_count_so_far=MAX_QUESTIONS)
     assert q is None
 
 
 def test_prefers_missing_fields():
-    fields = CollectedFields(chief_complaint="SYM_FEVER", complaint_category="fever")
+    fields = _patient(chief_complaint="SYM_FEVER", complaint_category="fever")
     q = select_next_question(fields, missing_fields=["allergies"], question_count_so_far=1)
     assert q is not None
     assert q.field == "allergies"

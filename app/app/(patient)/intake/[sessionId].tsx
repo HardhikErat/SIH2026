@@ -52,10 +52,17 @@ export default function IntakeScreen() {
           content: content.trim(),
           language,
         });
-        addTurns(content.trim(), res.ai_message, res.fact_chips, res.phase, res.consultation_summary);
+        addTurns(
+          content.trim(),
+          res.ai_message,
+          res.fact_chips,
+          res.phase,
+          res.consultation_summary,
+          Boolean(res.conversation_complete ?? res.ready_for_confirm),
+        );
         speak(res.ai_message, language);
         setText('');
-        if (res.ready_for_confirm && res.consultation_summary) setReady(true);
+        if ((res.ready_for_confirm || res.conversation_complete) && res.consultation_summary) setReady(true);
       } catch (e) {
         const msg = e instanceof ApiError ? e.message : t(language, 'retrying');
         setError(msg);

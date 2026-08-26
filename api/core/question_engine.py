@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from core.conversation_memory import select_unasked_candidates
 from core.schema import CollectedFields, ConsultationPhase, Question
 
 MAX_QUESTIONS = 10
@@ -213,9 +214,11 @@ def select_next_question(
     language: str = "en",
     max_questions: int = MAX_QUESTIONS,
     bank: list[Question] | None = None,
+    asked_questions: list[str] | None = None,
 ) -> Question | None:
     phase = detect_phase(fields)
-    
+    asked = asked_questions or []
+
     if phase == ConsultationPhase.BASIC_DETAILS:
         questions = BASIC_DETAILS_QUESTIONS
         category = "*"
@@ -236,6 +239,8 @@ def select_next_question(
         for q in questions
         if matches_category(q) and not fields.is_collected(q.field)
     ]
+    # Drop semantic duplicates / already-asked field questions
+    candidates = select_unasked_candidates(candidates, fields, asked)
 
     if missing_fields and phase != ConsultationPhase.BASIC_DETAILS:
         missing_set = set(missing_fields)
@@ -250,9 +255,18 @@ def select_next_question(
         if phase == ConsultationPhase.BASIC_DETAILS:
             # Transition to consultation phase
             return select_next_question(
-                fields, missing_fields, question_count_so_far, language, max_questions, bank
+                fields,
+                missing_fields,
+                question_count_so_far,
+                language,
+                max_questions,
+                bank,
+                asked_questions=asked,
             )
         if fields.is_collected("chief_complaint") and not missing_fields:
+            return None
+        # Avoid looping the same generic prompt after it was already asked
+        if any(qid.startswith("Q_GENERIC:") for qid in asked):
             return None
         return GENERIC_FOLLOWUP
     return ranked[0]

@@ -119,15 +119,23 @@ export type TurnResponse = {
   audio_url?: string;
   updated_fields: Record<string, unknown>;
   missing_fields: string[];
-  next_question?: Record<string, unknown>;
-  ready_for_confirm: boolean;
-  phase: 'basic_details' | 'consultation' | 'completed';
-  consultation_summary?: Record<string, unknown>;
-  fact_chips: { label: string; field: string }[];
-  model_version: string;
-  llm_live: boolean;
-  contradictions: any[];
-  priority_flag: string;
+  next_question?: { field: string; question_text?: Record<string, string> } | null;
+  ready_for_confirm?: boolean;
+  conversation_complete?: boolean;
+  conversation_memory?: {
+    collected_information: Record<string, unknown>;
+    asked_questions: string[];
+    answered_questions: string[];
+    missing_information: string[];
+    conversation_complete: boolean;
+  };
+  phase?: 'basic_details' | 'consultation' | 'completed';
+  consultation_summary?: Record<string, unknown> | null;
+  fact_chips?: { label: string; field: string }[];
+  contradictions?: unknown[];
+  priority_flag?: string;
+  model_version?: string;
+  llm_live?: boolean;
 };
 
 export type QueueItem = {
