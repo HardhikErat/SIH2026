@@ -15,7 +15,7 @@ export default function RobotDemoScreen() {
         <Text style={styles.hint}>Move the pointer or drag across the face. Pupils follow, clamped to 20px inside the visor clips.</Text>
       </View>
       <View style={styles.stage}>
-        <RobotEyes idPrefix="demo" />
+        <RobotEyes idPrefix="demo" style={{ width: '100%', maxWidth: 480 }} />
       </View>
     </SafeAreaView>
   );

@@ -1,5 +1,6 @@
-import { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useMemo, type ReactElement, type ReactNode, type Ref } from 'react';
+import { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useMemo, type Ref } from 'react';
 import {
+  Image as RasterImage,
   type GestureResponderEvent,
   type LayoutChangeEvent,
   type NativeSyntheticEvent,
@@ -8,13 +9,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedProps,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import Svg, {
   Circle,
   ClipPath,
@@ -37,12 +32,12 @@ import {
   RIGHT_PUPIL,
   ROBOT_CANVAS,
   type EyeCenter,
+  type EyeSocket,
   type LayoutBounds,
+  type PupilMarkup,
 } from './robotEyesGeometry';
 
 const ROBOT_ASSET = require('../../assets/images/base-robot.png') as number;
-
-const AnimatedG = Animated.createAnimatedComponent(G);
 
 const PUPIL_TIMING = {
   duration: 60,
@@ -50,13 +45,9 @@ const PUPIL_TIMING = {
 } as const;
 
 export type RobotEyesProps = {
-  /** Optional width; height follows the 900×1000 canvas aspect ratio. */
   width?: number;
-  /** Max pupil translation in SVG units. Source SVG is tuned for 20. */
   maxPupilTravel?: number;
-  /** When false, pupils stay centered (clip + gradient still render). */
   trackingEnabled?: boolean;
-  /** Prefix SVG ids so multiple instances do not collide. */
   idPrefix?: string;
   accessibilityLabel?: string;
   testID?: string;
@@ -72,20 +63,6 @@ type PointerLocationEvent = NativeSyntheticEvent<{
   locationY: number;
 }>;
 
-type PupilTranslate = {
-  translateX: number;
-  translateY: number;
-};
-
-type AnimatedPupilGProps = {
-  id: string;
-  animatedProps: object;
-  style: object;
-  children: ReactNode;
-};
-
-const AnimatedPupilG = AnimatedG as unknown as (props: AnimatedPupilGProps) => ReactElement;
-
 function pupilTranslate(
   localX: number,
   localY: number,
@@ -94,7 +71,7 @@ function pupilTranslate(
   eye: EyeCenter,
   maxRadius: number,
   active: number,
-): PupilTranslate {
+): { translateX: number; translateY: number } {
   'worklet';
   const w = layoutW || 1;
   const h = layoutH || 1;
@@ -108,6 +85,85 @@ function pupilTranslate(
   }
   const scale = Math.min(1, maxRadius / length) * active;
   return { translateX: dx * scale, translateY: dy * scale };
+}
+
+function PupilGraphic({ pupil, glowId }: { pupil: PupilMarkup; glowId: string }) {
+  return (
+    <>
+      <Ellipse cx={pupil.cx} cy={pupil.cy} rx={pupil.rx} ry={pupil.ry} fill={`url(#${glowId})`} />
+      <Circle
+        cx={pupil.catchlightPrimary.cx}
+        cy={pupil.catchlightPrimary.cy}
+        r={pupil.catchlightPrimary.r}
+        fill="#ffffff"
+        opacity={pupil.catchlightPrimary.opacity}
+      />
+      <Circle
+        cx={pupil.catchlightSecondary.cx}
+        cy={pupil.catchlightSecondary.cy}
+        r={pupil.catchlightSecondary.r}
+        fill="#ffffff"
+        opacity={pupil.catchlightSecondary.opacity}
+      />
+    </>
+  );
+}
+
+function AnimatedPupil({
+  clip,
+  pupil,
+  glowId,
+  clipId,
+  groupId,
+  style,
+}: {
+  clip: EyeSocket;
+  pupil: PupilMarkup;
+  glowId: string;
+  clipId: string;
+  groupId: string;
+  style: object;
+}) {
+  const box: ViewStyle = {
+    position: 'absolute',
+    left: `${((clip.cx - clip.rx) / ROBOT_CANVAS.width) * 100}%`,
+    top: `${((clip.cy - clip.ry) / ROBOT_CANVAS.height) * 100}%`,
+    width: `${((clip.rx * 2) / ROBOT_CANVAS.width) * 100}%`,
+    height: `${((clip.ry * 2) / ROBOT_CANVAS.height) * 100}%`,
+    overflow: 'hidden',
+    borderRadius: 999,
+    transform: [{ rotate: `${clip.rotateDeg}deg` }],
+  };
+  const originX = clip.cx - clip.rx;
+  const originY = clip.cy - clip.ry;
+
+  return (
+    <View pointerEvents="none" style={box}>
+      <Animated.View style={style}>
+        <Svg width="100%" height="100%" viewBox={`${originX} ${originY} ${clip.rx * 2} ${clip.ry * 2}`}>
+          <Defs>
+            <ClipPath id={clipId}>
+              <Ellipse
+                cx={clip.cx}
+                cy={clip.cy}
+                rx={clip.rx}
+                ry={clip.ry}
+                transform={`rotate(${clip.rotateDeg}, ${clip.cx}, ${clip.cy})`}
+              />
+            </ClipPath>
+            <RadialGradient id={glowId} cx="50%" cy="50%" r="50%">
+              <Stop offset="0%" stopColor="#00f0ff" />
+              <Stop offset="70%" stopColor="#0066cc" />
+              <Stop offset="100%" stopColor="#001a4d" />
+            </RadialGradient>
+          </Defs>
+          <G id={groupId} clipPath={`url(#${clipId})`}>
+            <PupilGraphic pupil={pupil} glowId={glowId} />
+          </G>
+        </Svg>
+      </Animated.View>
+    </View>
+  );
 }
 
 function RobotEyesInner(
@@ -138,8 +194,8 @@ function RobotEyesInner(
 
   const layoutWidth = useSharedValue(1);
   const layoutHeight = useSharedValue(1);
-  const pointerLocalX = useSharedValue(0);
-  const pointerLocalY = useSharedValue(0);
+  const pointerLocalX = useSharedValue(ROBOT_CANVAS.width / 2);
+  const pointerLocalY = useSharedValue(ROBOT_CANVAS.height / 2);
   const tracking = useSharedValue(0);
   const maxTravel = useSharedValue(maxPupilTravel);
 
@@ -198,8 +254,12 @@ function RobotEyesInner(
       maxTravel.value,
       tracking.value,
     );
+    const sx = layoutWidth.value / ROBOT_CANVAS.width;
+    const sy = layoutHeight.value / ROBOT_CANVAS.height;
     return {
-      transform: [{ translateX: t.translateX }, { translateY: t.translateY }],
+      width: '100%' as const,
+      height: '100%' as const,
+      transform: [{ translateX: t.translateX * sx }, { translateY: t.translateY * sy }],
     };
   });
 
@@ -213,38 +273,12 @@ function RobotEyesInner(
       maxTravel.value,
       tracking.value,
     );
+    const sx = layoutWidth.value / ROBOT_CANVAS.width;
+    const sy = layoutHeight.value / ROBOT_CANVAS.height;
     return {
-      transform: [{ translateX: t.translateX }, { translateY: t.translateY }],
-    };
-  });
-
-  const leftPupilProps = useAnimatedProps(() => {
-    const t = pupilTranslate(
-      pointerLocalX.value,
-      pointerLocalY.value,
-      layoutWidth.value,
-      layoutHeight.value,
-      LEFT_PUPIL,
-      maxTravel.value,
-      tracking.value,
-    );
-    return {
-      transform: [{ translateX: t.translateX }, { translateY: t.translateY }],
-    };
-  });
-
-  const rightPupilProps = useAnimatedProps(() => {
-    const t = pupilTranslate(
-      pointerLocalX.value,
-      pointerLocalY.value,
-      layoutWidth.value,
-      layoutHeight.value,
-      RIGHT_PUPIL,
-      maxTravel.value,
-      tracking.value,
-    );
-    return {
-      transform: [{ translateX: t.translateX }, { translateY: t.translateY }],
+      width: '100%' as const,
+      height: '100%' as const,
+      transform: [{ translateX: t.translateX * sx }, { translateY: t.translateY * sy }],
     };
   });
 
@@ -269,42 +303,18 @@ function RobotEyesInner(
       onResponderRelease={resetPupils}
       onResponderTerminate={resetPupils}
       {...(webPointerProps as object)}
-      style={[styles.host, width != null ? { width, aspectRatio: ROBOT_CANVAS.width / ROBOT_CANVAS.height } : styles.flexHost, style]}
+      style={[styles.host, width != null ? { width } : styles.flexHost, style]}
     >
+      <RasterImage source={ROBOT_ASSET} style={styles.baseImage} resizeMode="contain" />
+
       <Svg
+        style={StyleSheet.absoluteFill}
         width="100%"
         height="100%"
         viewBox={`0 0 ${ROBOT_CANVAS.width} ${ROBOT_CANVAS.height}`}
         preserveAspectRatio="xMidYMid meet"
       >
-        <Defs>
-          <ClipPath id={ids.leftEyeClip}>
-            <Ellipse
-              cx={LEFT_EYE_CLIP.cx}
-              cy={LEFT_EYE_CLIP.cy}
-              rx={LEFT_EYE_CLIP.rx}
-              ry={LEFT_EYE_CLIP.ry}
-              transform={`rotate(${LEFT_EYE_CLIP.rotateDeg}, ${LEFT_EYE_CLIP.cx}, ${LEFT_EYE_CLIP.cy})`}
-            />
-          </ClipPath>
-          <ClipPath id={ids.rightEyeClip}>
-            <Ellipse
-              cx={RIGHT_EYE_CLIP.cx}
-              cy={RIGHT_EYE_CLIP.cy}
-              rx={RIGHT_EYE_CLIP.rx}
-              ry={RIGHT_EYE_CLIP.ry}
-              transform={`rotate(${RIGHT_EYE_CLIP.rotateDeg}, ${RIGHT_EYE_CLIP.cx}, ${RIGHT_EYE_CLIP.cy})`}
-            />
-          </ClipPath>
-          <RadialGradient id={ids.eyeGlow} cx="50%" cy="50%" r="50%">
-            <Stop offset="0%" stopColor="#00f0ff" />
-            <Stop offset="70%" stopColor="#0066cc" />
-            <Stop offset="100%" stopColor="#001a4d" />
-          </RadialGradient>
-        </Defs>
-
         <Image href={ROBOT_ASSET} x={0} y={0} width={ROBOT_CANVAS.width} height={ROBOT_CANVAS.height} />
-
         <Ellipse
           cx={LEFT_EYE_SOCKET.cx}
           cy={LEFT_EYE_SOCKET.cy}
@@ -321,57 +331,26 @@ function RobotEyesInner(
           fill="#0c1a30"
           transform={`rotate(${RIGHT_EYE_SOCKET.rotateDeg}, ${RIGHT_EYE_SOCKET.cx}, ${RIGHT_EYE_SOCKET.cy})`}
         />
-
-        <G clipPath={`url(#${ids.leftEyeClip})`}>
-          <AnimatedPupilG id={ids.leftPupil} style={leftPupilStyle} animatedProps={leftPupilProps}>
-            <Ellipse cx={LEFT_PUPIL.cx} cy={LEFT_PUPIL.cy} rx={LEFT_PUPIL.rx} ry={LEFT_PUPIL.ry} fill={`url(#${ids.eyeGlow})`} />
-            <Circle
-              cx={LEFT_PUPIL.catchlightPrimary.cx}
-              cy={LEFT_PUPIL.catchlightPrimary.cy}
-              r={LEFT_PUPIL.catchlightPrimary.r}
-              fill="#ffffff"
-              opacity={LEFT_PUPIL.catchlightPrimary.opacity}
-            />
-            <Circle
-              cx={LEFT_PUPIL.catchlightSecondary.cx}
-              cy={LEFT_PUPIL.catchlightSecondary.cy}
-              r={LEFT_PUPIL.catchlightSecondary.r}
-              fill="#ffffff"
-              opacity={LEFT_PUPIL.catchlightSecondary.opacity}
-            />
-          </AnimatedPupilG>
-        </G>
-
-        <G clipPath={`url(#${ids.rightEyeClip})`}>
-          <AnimatedPupilG id={ids.rightPupil} style={rightPupilStyle} animatedProps={rightPupilProps}>
-            <Ellipse cx={RIGHT_PUPIL.cx} cy={RIGHT_PUPIL.cy} rx={RIGHT_PUPIL.rx} ry={RIGHT_PUPIL.ry} fill={`url(#${ids.eyeGlow})`} />
-            <Circle
-              cx={RIGHT_PUPIL.catchlightPrimary.cx}
-              cy={RIGHT_PUPIL.catchlightPrimary.cy}
-              r={RIGHT_PUPIL.catchlightPrimary.r}
-              fill="#ffffff"
-              opacity={RIGHT_PUPIL.catchlightPrimary.opacity}
-            />
-            <Circle
-              cx={RIGHT_PUPIL.catchlightSecondary.cx}
-              cy={RIGHT_PUPIL.catchlightSecondary.cy}
-              r={RIGHT_PUPIL.catchlightSecondary.r}
-              fill="#ffffff"
-              opacity={RIGHT_PUPIL.catchlightSecondary.opacity}
-            />
-          </AnimatedPupilG>
-        </G>
-
-        <Path
-          d={MOUTH_PATH}
-          fill="none"
-          stroke="#00f0ff"
-          strokeWidth={14}
-          strokeLinecap="round"
-          opacity={0.35}
-        />
+        <Path d={MOUTH_PATH} fill="none" stroke="#00f0ff" strokeWidth={14} strokeLinecap="round" opacity={0.35} />
         <Path d={MOUTH_PATH} fill="none" stroke="#00f0ff" strokeWidth={7} strokeLinecap="round" />
       </Svg>
+
+      <AnimatedPupil
+        clip={LEFT_EYE_CLIP}
+        pupil={LEFT_PUPIL}
+        glowId={`${ids.eyeGlow}-left`}
+        clipId={ids.leftEyeClip}
+        groupId={ids.leftPupil}
+        style={leftPupilStyle}
+      />
+      <AnimatedPupil
+        clip={RIGHT_EYE_CLIP}
+        pupil={RIGHT_PUPIL}
+        glowId={`${ids.eyeGlow}-right`}
+        clipId={ids.rightEyeClip}
+        groupId={ids.rightPupil}
+        style={rightPupilStyle}
+      />
     </View>
   );
 }
@@ -383,9 +362,16 @@ const styles = StyleSheet.create({
   host: {
     alignSelf: 'center',
     overflow: 'hidden',
+    aspectRatio: ROBOT_CANVAS.width / ROBOT_CANVAS.height,
+    backgroundColor: '#05080f',
   },
   flexHost: {
     width: '100%',
-    aspectRatio: ROBOT_CANVAS.width / ROBOT_CANVAS.height,
+    maxWidth: 560,
+  },
+  baseImage: {
+    ...StyleSheet.absoluteFill,
+    width: '100%',
+    height: '100%',
   },
 });

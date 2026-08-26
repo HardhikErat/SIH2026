@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { AppHeader } from '../components/AppHeader';
 import { BrandMark, IconDoctor, IconHospital, IconStethoscope } from '../components/icons';
+import { RobotEyes } from '../components/RobotEyes';
 import { RoleCard } from '../components/RoleCard';
 import { Screen } from '../components/Screen';
 import { StatusPill } from '../components/StatusPill';
@@ -16,6 +17,7 @@ export default function LandingScreen() {
           <BrandMark size={40} />
           <StatusPill label="Camp intake · live" tone="ok" />
         </View>
+        <RobotEyes />
         <AppHeader
           title="Clinical Intake Assistant"
           subtitle="Hospital-grade pre-consultation — voice-first, multilingual, doctor-verified."

@@ -19,6 +19,7 @@ import { HorizontalScrollSteps } from '../motion/HorizontalScrollSteps';
 import { ParallaxHero } from '../motion/ParallaxHero';
 import { ScrollProgressBar } from '../motion/ScrollProgressBar';
 import { ScrollReveal } from '../motion/ScrollReveal';
+import { RobotEyes } from '../components/RobotEyes';
 
 const STEPS = [
   {
@@ -116,6 +117,7 @@ export default function LandingScreen() {
 
       <ParallaxHero style={{ minHeight: '92vh', display: 'flex', alignItems: 'center' }}>
         <div style={heroInner}>
+          <div style={heroCopy}>
           <ScrollReveal delay={0.05}>
             <div style={heroBadge}>
               <span style={heroBadgeDot} />
@@ -174,6 +176,10 @@ export default function LandingScreen() {
               ))}
             </div>
           </ScrollReveal>
+          </div>
+          <div style={heroRobot}>
+            <RobotEyes />
+          </div>
         </div>
       </ParallaxHero>
 
@@ -333,6 +339,20 @@ const heroInner: React.CSSProperties = {
   margin: '0 auto',
   padding: '120px 24px 80px',
   width: '100%',
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+  gap: 40,
+  alignItems: 'center',
+};
+
+const heroCopy: React.CSSProperties = {
+  minWidth: 0,
+};
+
+const heroRobot: React.CSSProperties = {
+  width: '100%',
+  maxWidth: 420,
+  justifySelf: 'center',
 };
 
 const heroBadge: React.CSSProperties = {
