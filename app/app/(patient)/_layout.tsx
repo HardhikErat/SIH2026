@@ -2,7 +2,7 @@ import { Stack, router } from 'expo-router';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { LanguageSwitcher } from '../../shared/components/LanguageSwitcher';
 import { useSession } from '../../shared/store/session';
-import { colors, fonts, space } from '../../shared/theme';
+import { colors, fonts, radius, space } from '../../shared/theme';
 
 function BackHome() {
   return (
@@ -35,6 +35,14 @@ export default function PatientLayout() {
 }
 
 const styles = StyleSheet.create({
-  back: { paddingHorizontal: space[3], paddingVertical: space[2] },
-  backText: { color: colors.teal700, fontFamily: fonts.uiSemiBold, fontSize: 15 },
+  back: {
+    paddingHorizontal: space[4],
+    paddingVertical: space[2],
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.teal700,
+    backgroundColor: colors.white,
+    marginLeft: space[1],
+  },
+  backText: { color: colors.teal700, fontFamily: fonts.uiSemiBold, fontSize: 14 },
 });

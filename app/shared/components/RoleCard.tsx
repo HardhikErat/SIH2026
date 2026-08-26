@@ -1,3 +1,4 @@
+import { ReactNode } from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { MotionPressable } from '../motion/MotionPressable';
 import { colors, fonts, radius, shadow, space, typography } from '../theme';
@@ -15,7 +16,7 @@ type Props = {
   title: string;
   description: string;
   statusLabel?: string;
-  icon?: string;
+  icon?: ReactNode;
   accent?: Accent;
   onPress?: () => void;
   style?: ViewStyle;
@@ -28,7 +29,7 @@ export function RoleCard({ title, description, statusLabel, icon, accent = 'pati
     <>
       <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
       <View style={styles.body}>
-        {icon ? <Text style={styles.icon}>{icon}</Text> : null}
+        {icon ? <View style={styles.iconWrap}>{icon}</View> : null}
         {statusLabel ? <StatusPill label={statusLabel} tone="neutral" /> : null}
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.description}>{description}</Text>
@@ -59,7 +60,14 @@ const styles = StyleSheet.create({
   },
   accentBar: { height: 4, width: '100%' },
   body: { padding: space[5], gap: space[3] },
-  icon: { fontSize: 32 },
+  iconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.lg,
+    backgroundColor: colors.tealSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   title: { ...typography.title },
   description: { ...typography.bodyMuted },
   action: {

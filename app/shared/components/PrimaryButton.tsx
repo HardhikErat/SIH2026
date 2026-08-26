@@ -1,6 +1,6 @@
 import { StyleSheet, Text } from 'react-native';
 import { MotionPressable } from '../motion/MotionPressable';
-import { colors, fonts, radius, space, touchMin, typography } from '../theme';
+import { colors, fonts, radius, shadow, space, touchMin } from '../theme';
 
 export function PrimaryButton({
   label,
@@ -51,33 +51,47 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: space[5],
+    paddingHorizontal: space[6],
+    paddingVertical: space[4],
     marginVertical: space[1],
   },
   primary: {
-    backgroundColor: colors.navy800,
+    backgroundColor: colors.teal500,
+    borderWidth: 0,
+    ...shadow.glow,
   },
-  full: { alignSelf: 'stretch' },
+  full: { alignSelf: 'stretch', width: '100%' },
   compact: {
-    minHeight: 44,
-    paddingHorizontal: space[4],
+    minHeight: 48,
+    minWidth: 88,
+    paddingHorizontal: space[5],
+    paddingVertical: space[3],
     alignSelf: 'auto',
+    marginVertical: 0,
   },
   sec: {
     backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.navy700,
+    borderWidth: 1.5,
+    borderColor: colors.teal700,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   textBtn: {
     backgroundColor: 'transparent',
     minHeight: 44,
+    paddingVertical: space[2],
+    shadowOpacity: 0,
+    elevation: 0,
   },
   off: { opacity: 0.45 },
   label: {
     color: colors.white,
-    fontSize: typography.body.fontSize,
+    fontSize: 16,
+    lineHeight: 24,
     fontFamily: fonts.uiSemiBold,
+    textAlign: 'center',
+    width: '100%',
   },
-  secLabel: { color: colors.navy800 },
+  secLabel: { color: colors.teal700 },
   textLabel: { color: colors.navy800 },
 });

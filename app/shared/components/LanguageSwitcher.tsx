@@ -1,5 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 import { colors, fonts, radius, space, typography } from '../theme';
+import { IconGlobe } from './icons';
 
 type Props = {
   languageCode: string;
@@ -15,7 +16,7 @@ export function LanguageSwitcher({ languageCode, onPress }: Props) {
       accessibilityRole="button"
       accessibilityLabel={`Language: ${languageCode}`}
     >
-      <Text style={styles.globe}>🌐</Text>
+      <IconGlobe size={16} color={colors.teal700} />
       <Text style={styles.code}>{label}</Text>
     </Pressable>
   );
@@ -34,7 +35,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     minHeight: 40,
   },
-  globe: { fontSize: 14 },
   code: {
     ...typography.label,
     textTransform: 'uppercase',

@@ -1,7 +1,8 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MotionView } from '../motion/MotionView';
 import { useReducedMotion } from '../motion/useReducedMotion';
-import { colors, fonts, radius, space, touchMin, typography } from '../theme';
+import { colors, fonts, shadow, space, typography } from '../theme';
+import { IconMicFilled } from './icons';
 
 type Props = {
   isRecording: boolean;
@@ -12,32 +13,34 @@ type Props = {
   onStop: () => void;
 };
 
+const MIC_SIZE = 72;
+
 export function MicButton({ isRecording, processing, error, disabled, onStart, onStop }: Props) {
   const reduced = useReducedMotion();
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={isRecording ? 'Stop recording' : 'Start recording'}
-      disabled={disabled || processing}
-      onPress={isRecording ? onStop : onStart}
-      style={({ pressed }) => [
-        styles.btn,
-        isRecording && styles.rec,
-        error && styles.err,
-        disabled && styles.off,
-        pressed && styles.pressed,
-      ]}
-    >
-      {processing ? (
-        <ActivityIndicator color={colors.white} />
-      ) : (
-        <View style={styles.inner}>
+    <View style={styles.wrap}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={isRecording ? 'Stop recording' : 'Start recording'}
+        disabled={disabled || processing}
+        onPress={isRecording ? onStop : onStart}
+        style={({ pressed }) => [
+          styles.btn,
+          isRecording && styles.rec,
+          error && styles.err,
+          disabled && styles.off,
+          pressed && styles.pressed,
+        ]}
+      >
+        {processing ? (
+          <ActivityIndicator color={colors.white} />
+        ) : (
           <MotionView
-            style={[styles.ring, isRecording && styles.ringActive]}
+            style={[styles.iconWrap, isRecording && styles.iconWrapActive]}
             animate={
               isRecording && !reduced
-                ? { scale: [1, 1.06, 1], opacity: [1, 0.85, 1] }
+                ? { scale: [1, 1.08, 1], opacity: [1, 0.85, 1] }
                 : { scale: 1, opacity: 1 }
             }
             transition={
@@ -46,55 +49,53 @@ export function MicButton({ isRecording, processing, error, disabled, onStart, o
                 : { duration: 0.15 }
             }
           >
-            <View style={[styles.core, isRecording && styles.coreActive]} />
+            <IconMicFilled size={28} color={colors.white} />
           </MotionView>
-          <Text style={styles.caption}>{isRecording ? 'Listening' : 'Speak'}</Text>
-        </View>
-      )}
-    </Pressable>
+        )}
+      </Pressable>
+      <Text style={[styles.caption, isRecording && styles.captionActive]}>
+        {processing ? '…' : isRecording ? 'Listening' : 'Speak'}
+      </Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrap: {
+    alignItems: 'center',
+    gap: space[2],
+  },
   btn: {
-    minWidth: touchMin + 40,
-    minHeight: touchMin + 40,
-    borderRadius: radius.mic * 2,
-    backgroundColor: colors.navy800,
+    width: MIC_SIZE,
+    height: MIC_SIZE,
+    borderRadius: MIC_SIZE / 2,
+    backgroundColor: colors.teal500,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: space[4],
+    ...shadow.glow,
   },
-  rec: { backgroundColor: colors.primaryDeep },
-  err: { backgroundColor: colors.statusUrgent },
+  rec: { backgroundColor: colors.teal700 },
+  err: { backgroundColor: colors.statusUrgent, shadowColor: colors.statusUrgent },
   off: { opacity: 0.45 },
   pressed: { opacity: 0.92 },
-  inner: { alignItems: 'center', gap: space[2] },
-  ring: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.35)',
+  iconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ringActive: { borderColor: colors.sand200 },
-  core: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.white,
-  },
-  coreActive: {
-    width: 14,
-    height: 14,
-    borderRadius: 3,
-    backgroundColor: colors.sand200,
+  iconWrapActive: {
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.55)',
   },
   caption: {
-    ...typography.body,
-    color: colors.white,
+    ...typography.caption,
+    color: colors.teal700,
     fontFamily: fonts.uiSemiBold,
+    fontSize: 13,
+    lineHeight: 18,
+    textAlign: 'center',
   },
+  captionActive: { color: colors.teal700 },
 });

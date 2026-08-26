@@ -63,7 +63,7 @@ function LangTile({
       style={[styles.tile, selected && styles.tileOn]}
     >
       <Text style={[styles.native, selected && styles.nativeOn]}>{lang.native_name}</Text>
-      <Text style={styles.en}>{lang.name}</Text>
+      <Text style={[styles.en, selected && styles.enOn]}>{lang.name}</Text>
       {lang.tier > 1 ? <LanguageTierBadge tier={lang.tier} /> : null}
     </Pressable>
   );
@@ -77,21 +77,22 @@ const styles = StyleSheet.create({
     minWidth: 100,
     minHeight: 88,
     padding: space[3],
-    borderRadius: radius.card,
-    backgroundColor: colors.sand100,
-    borderWidth: 1,
+    borderRadius: radius.lg,
+    backgroundColor: colors.white,
+    borderWidth: 1.5,
     borderColor: colors.line,
     justifyContent: 'center',
   },
   tileOn: {
-    borderColor: colors.teal700,
-    borderWidth: 2,
-    backgroundColor: colors.tealSoft,
+    borderColor: colors.teal500,
+    borderWidth: 1.5,
+    backgroundColor: colors.teal500,
   },
   native: {
     ...typography.body,
     fontFamily: fonts.notoSemiBold,
   },
-  nativeOn: { color: colors.teal700 },
+  nativeOn: { color: colors.white },
   en: { ...typography.caption },
+  enOn: { color: 'rgba(255,255,255,0.85)' },
 });

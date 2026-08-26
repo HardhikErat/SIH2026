@@ -37,13 +37,15 @@ export function ChatBubble({ speaker, text, onPlay, index = 0 }: Props) {
 }
 
 const styles = StyleSheet.create({
-  row: { marginBottom: space[4], flexDirection: 'row' },
+  row: { marginBottom: space[3], flexDirection: 'row', width: '100%' },
   left: { justifyContent: 'flex-start' },
   right: { justifyContent: 'flex-end' },
   bubble: {
     maxWidth: '88%',
     borderRadius: radius.card,
-    padding: space[4],
+    paddingHorizontal: space[4],
+    paddingVertical: space[3],
+    gap: space[2],
   },
   ai: {
     backgroundColor: colors.teal700,
@@ -55,9 +57,24 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     borderBottomRightRadius: radius.sm,
   },
-  text: { ...typography.body },
+  text: { ...typography.body, lineHeight: 24 },
   aiText: { color: colors.white },
   pText: { color: colors.ink },
-  play: { marginTop: space[3], minHeight: 36, justifyContent: 'center' },
-  playText: { ...typography.caption, color: colors.sand200, fontFamily: fonts.uiSemiBold },
+  play: {
+    marginTop: space[1],
+    minHeight: 32,
+    alignSelf: 'flex-start',
+    justifyContent: 'center',
+    paddingHorizontal: space[2],
+    paddingVertical: space[1],
+    borderRadius: radius.sm,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+  },
+  playText: {
+    ...typography.caption,
+    color: colors.sand200,
+    fontFamily: fonts.uiSemiBold,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
 });

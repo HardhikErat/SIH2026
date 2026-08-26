@@ -5,7 +5,6 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -161,37 +160,40 @@ export default function IntakeScreen() {
             layout
           >
             <Text style={styles.chipsLabel}>Understood so far</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={styles.chipsRow}>
               {chips.map((c) => (
                 <FactChip key={c.field} label={c.label} />
               ))}
-            </ScrollView>
+            </View>
           </MotionView>
         ) : null}
 
-        <FlatList
-          ref={listRef}
-          data={turns}
-          keyExtractor={(_, i) => String(i)}
-          contentContainerStyle={styles.list}
-          onContentSizeChange={() => {
-            if (followUpMode) listRef.current?.scrollToEnd({ animated: true });
-          }}
-          renderItem={({ item, index }) => (
-            <ChatBubble
-              speaker={item.speaker}
-              text={item.text}
-              index={index}
-              onPlay={() => speak(item.text, language)}
-            />
-          )}
-          ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyTitle}>Tap Speak and tell us your problem</Text>
-              <Text style={styles.emptyBody}>You can also type below if voice is not available.</Text>
-            </View>
-          }
-        />
+        <View style={styles.chatPanel}>
+          <FlatList
+            ref={listRef}
+            style={styles.chatList}
+            data={turns}
+            keyExtractor={(_, i) => String(i)}
+            contentContainerStyle={styles.list}
+            onContentSizeChange={() => {
+              if (followUpMode) listRef.current?.scrollToEnd({ animated: true });
+            }}
+            renderItem={({ item, index }) => (
+              <ChatBubble
+                speaker={item.speaker}
+                text={item.text}
+                index={index}
+                onPlay={() => speak(item.text, language)}
+              />
+            )}
+            ListEmptyComponent={
+              <View style={styles.empty}>
+                <Text style={styles.emptyTitle}>Tap Speak and tell us your problem</Text>
+                <Text style={styles.emptyBody}>You can also type below if voice is not available.</Text>
+              </View>
+            }
+          />
+        </View>
 
         <AnimatePresence>
           {error ? (
@@ -293,6 +295,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     paddingHorizontal: space[4],
     paddingBottom: space[4],
+    gap: space[3],
   },
   chipsBar: {
     backgroundColor: colors.white,
@@ -301,22 +304,44 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     padding: space[4],
     marginTop: space[3],
-    marginBottom: space[3],
-    gap: space[2],
+    gap: space[3],
   },
   chipsLabel: { ...typography.label },
-  list: { paddingBottom: space[4], flexGrow: 1 },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: space[2],
+  },
+  chatPanel: {
+    flex: 1,
+    minHeight: 220,
+    backgroundColor: colors.white,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.line,
+    overflow: 'hidden',
+  },
+  chatList: { flex: 1 },
+  list: {
+    paddingHorizontal: space[4],
+    paddingTop: space[4],
+    paddingBottom: space[5],
+    flexGrow: 1,
+    gap: space[1],
+  },
   empty: {
+    flexGrow: 1,
     paddingVertical: space[8],
     paddingHorizontal: space[4],
     alignItems: 'center',
+    justifyContent: 'center',
     gap: space[2],
   },
   emptyTitle: { ...typography.title, textAlign: 'center' },
   emptyBody: { ...typography.bodyMuted, textAlign: 'center' },
-  bannerWrap: { marginBottom: space[3] },
-  readyWrap: { marginBottom: space[3] },
-  followUpBar: { marginBottom: space[3] },
+  bannerWrap: {},
+  readyWrap: {},
+  followUpBar: {},
   actionRow: { gap: space[3], marginTop: space[4] },
   composer: {
     backgroundColor: colors.white,
@@ -324,20 +349,28 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
     padding: space[4],
-    gap: space[4],
+    gap: space[3],
   },
-  micWrap: { alignItems: 'center' },
+  micWrap: { alignItems: 'center', paddingTop: space[1] },
   textWrap: { gap: space[2] },
   fallbackLabel: { ...typography.caption, textAlign: 'center' },
-  inputRow: { gap: space[3] },
-  input: {
-    minHeight: 52,
-    borderWidth: 1,
-    borderColor: colors.line,
-    borderRadius: radius.card,
-    padding: space[3],
-    ...typography.body,
-    backgroundColor: colors.sand100,
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: space[3],
   },
-  loader: { marginTop: space[2] },
+  input: {
+    flex: 1,
+    minHeight: 48,
+    maxHeight: 120,
+    borderWidth: 1.5,
+    borderColor: colors.teal500,
+    borderRadius: radius.card,
+    paddingHorizontal: space[3],
+    paddingVertical: space[3],
+    ...typography.body,
+    lineHeight: 22,
+    backgroundColor: colors.white,
+  },
+  loader: { marginTop: space[1] },
 });

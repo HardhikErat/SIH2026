@@ -1,6 +1,19 @@
 import { Stack, router } from 'expo-router';
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { colors, fonts, space } from '../../shared/theme';
+import { colors, fonts, radius, space } from '../../shared/theme';
+
+const backStyles = StyleSheet.create({
+  back: {
+    paddingHorizontal: space[4],
+    paddingVertical: space[2],
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.teal700,
+    backgroundColor: colors.white,
+    marginLeft: space[1],
+  },
+  backText: { color: colors.teal700, fontFamily: fonts.uiSemiBold, fontSize: 14 },
+});
 
 export default function AdminLayout() {
   return (
@@ -17,8 +30,8 @@ export default function AdminLayout() {
         options={{
           title: 'Camp setup',
           headerLeft: () => (
-            <Pressable onPress={() => router.push('/')} style={styles.back}>
-              <Text style={styles.backText}>Home</Text>
+            <Pressable onPress={() => router.push('/')} style={backStyles.back}>
+              <Text style={backStyles.backText}>Home</Text>
             </Pressable>
           ),
         }}
@@ -26,8 +39,3 @@ export default function AdminLayout() {
     </Stack>
   );
 }
-
-const styles = StyleSheet.create({
-  back: { paddingHorizontal: space[3], paddingVertical: space[2] },
-  backText: { color: colors.teal700, fontFamily: fonts.uiSemiBold, fontSize: 15 },
-});

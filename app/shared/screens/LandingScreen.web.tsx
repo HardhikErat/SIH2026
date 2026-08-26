@@ -1,5 +1,19 @@
 import { router } from 'expo-router';
 import { motion } from 'motion/react';
+import {
+  BrandMark,
+  IconBolt,
+  IconCheck,
+  IconCheckSimple,
+  IconClipboard,
+  IconDoctor,
+  IconGlobe,
+  IconHospital,
+  IconLock,
+  IconMic,
+  IconShield,
+  IconSpeak,
+} from '../components/icons';
 import { colors, fonts, radius } from '../theme';
 import { HorizontalScrollSteps } from '../motion/HorizontalScrollSteps';
 import { ParallaxHero } from '../motion/ParallaxHero';
@@ -8,22 +22,22 @@ import { ScrollReveal } from '../motion/ScrollReveal';
 
 const STEPS = [
   {
-    icon: '🌐',
+    icon: <IconGlobe size={28} color={colors.teal700} />,
     title: 'Choose your language',
     body: 'Pick from 22+ scheduled languages. Speak naturally — we transcribe and structure your symptoms.',
   },
   {
-    icon: '🎙️',
+    icon: <IconMic size={28} color={colors.teal700} />,
     title: 'Voice or text intake',
     body: 'Tap Speak and describe your problem. The assistant asks follow-up questions until the picture is clear.',
   },
   {
-    icon: '✅',
+    icon: <IconCheck size={28} color={colors.teal700} />,
     title: 'Confirm your summary',
     body: 'Review what we understood. Edit anything before it goes to the doctor — nothing is final without you.',
   },
   {
-    icon: '👨‍⚕️',
+    icon: <IconDoctor size={28} color={colors.teal700} />,
     title: 'Doctor verifies',
     body: 'A clinician reviews, corrects, and signs off. Only verified information enters your consultation.',
   },
@@ -31,25 +45,32 @@ const STEPS = [
 
 const FEATURES = [
   {
-    icon: '🛡️',
+    icon: <IconShield size={28} color={colors.teal700} />,
     title: 'Clinician in the loop',
     body: 'Every AI suggestion stays pending until a doctor verifies. No auto-diagnosis, no silent errors.',
   },
   {
-    icon: '🗣️',
+    icon: <IconSpeak size={28} color={colors.teal700} />,
     title: 'Multilingual by design',
     body: 'Built for rural camps and urban OPDs — Hindi, Tamil, Telugu, Bengali, and 18 more languages.',
   },
   {
-    icon: '⚡',
+    icon: <IconBolt size={28} color={colors.teal700} />,
     title: 'Under 5 minutes',
     body: 'Structured intake in the time it takes to fill a paper form — without the handwriting puzzle.',
   },
   {
-    icon: '📋',
+    icon: <IconClipboard size={28} color={colors.teal700} />,
     title: 'Queue-ready summaries',
     body: 'Doctors see chief complaint, duration, meds, and allergies — formatted and flagged for urgency.',
   },
+];
+
+const TRUST_ITEMS = [
+  { icon: <IconHospital size={18} color={colors.inkMuted} />, label: 'Trusted camp workflow' },
+  { icon: <IconLock size={18} color={colors.inkMuted} />, label: 'Data stays with your doctor' },
+  { icon: <IconCheckSimple size={18} color={colors.inkMuted} />, label: 'AI never auto-diagnoses' },
+  { icon: <IconGlobe size={18} color={colors.inkMuted} />, label: '22 scheduled languages' },
 ];
 
 const PORTALS = [
@@ -150,13 +171,12 @@ export default function LandingScreen() {
 
       <section style={trustBand}>
         <div style={trustInner}>
-          {['🏥 Trusted camp workflow', '🔒 Data stays with your doctor', '✓ AI never auto-diagnoses', '🌐 22 scheduled languages'].map(
-            (item) => (
-              <span key={item} style={trustItem}>
-                {item}
-              </span>
-            ),
-          )}
+          {TRUST_ITEMS.map((item) => (
+            <span key={item.label} style={trustItem}>
+              <span style={trustIcon}>{item.icon}</span>
+              {item.label}
+            </span>
+          ))}
         </div>
       </section>
 
@@ -266,7 +286,7 @@ function SiteNav() {
     >
       <div style={navInner}>
         <div style={navBrand}>
-          <span style={navLogo}>+</span>
+          <BrandMark size={32} />
           <span style={navName}>Clinical Intake</span>
         </div>
         <nav style={navLinks}>
@@ -418,6 +438,16 @@ const trustItem: React.CSSProperties = {
   fontFamily: fonts.uiSemiBold,
   fontSize: 14,
   color: colors.inkMuted,
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
+};
+
+const trustIcon: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  flexShrink: 0,
 };
 
 const section: React.CSSProperties = { padding: '96px 24px' };
@@ -468,7 +498,6 @@ const featureCard: React.CSSProperties = {
 };
 
 const featureIcon: React.CSSProperties = {
-  fontSize: 32,
   marginBottom: 20,
   width: 56,
   height: 56,
@@ -596,18 +625,6 @@ const navInner: React.CSSProperties = {
 };
 
 const navBrand: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10 };
-const navLogo: React.CSSProperties = {
-  width: 32,
-  height: 32,
-  borderRadius: 10,
-  background: `linear-gradient(135deg, ${colors.navy800}, ${colors.teal500})`,
-  color: colors.white,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontFamily: fonts.uiSemiBold,
-  fontSize: 20,
-};
 const navName: React.CSSProperties = {
   fontFamily: fonts.uiSemiBold,
   fontSize: 16,

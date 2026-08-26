@@ -12,7 +12,7 @@ import { StatusPill } from '../../shared/components/StatusPill';
 import { speak } from '../../shared/hooks/useTts';
 import { t } from '../../shared/i18n';
 import { useSession } from '../../shared/store/session';
-import { colors, fonts, space, typography } from '../../shared/theme';
+import { colors, fonts, radius, space, typography } from '../../shared/theme';
 
 export default function PatientEntry() {
   const [language, setLanguage] = useState('hi');
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   consentCopy: { flex: 1, gap: space[1] },
   consentTitle: { ...typography.body, fontFamily: fonts.uiSemiBold },
   consentHint: { ...typography.caption },
-  formCard: { padding: space[4], gap: space[4], marginBottom: space[4] },
+  formCard: { padding: space[4], gap: space[4] },
   label: { ...typography.body, fontFamily: fonts.uiSemiBold, color: colors.ink },
   input: {
     borderWidth: 1,
@@ -155,20 +155,30 @@ const styles = StyleSheet.create({
     color: colors.ink,
     backgroundColor: colors.white,
   },
-  genderRow: { flexDirection: 'row', gap: space[2] },
+  genderRow: { flexDirection: 'row', gap: space[3] },
   genderBtn: {
     flex: 1,
-    paddingVertical: space[2],
-    paddingHorizontal: space[3],
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.line,
+    minHeight: 48,
+    paddingVertical: space[3],
+    paddingHorizontal: space[4],
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.teal700,
+    backgroundColor: colors.white,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   genderBtnActive: {
-    backgroundColor: colors.teal700,
-    borderColor: colors.teal700,
+    backgroundColor: colors.teal500,
+    borderColor: colors.teal500,
   },
-  genderText: { ...typography.body, color: colors.ink },
+  genderText: {
+    ...typography.body,
+    color: colors.teal700,
+    fontFamily: fonts.uiSemiBold,
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
+  },
   genderTextActive: { color: colors.white, fontFamily: fonts.uiSemiBold },
 });

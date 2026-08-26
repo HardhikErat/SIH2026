@@ -29,9 +29,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.tealSoft,
     borderRadius: radius.pill,
     paddingHorizontal: space[3],
-    paddingVertical: space[1],
-    marginRight: space[2],
-    marginBottom: space[2],
+    paddingVertical: space[2],
   },
   dot: {
     width: 6,
@@ -43,5 +41,6 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.teal700,
     fontFamily: fonts.uiSemiBold,
+    lineHeight: 18,
   },
 });

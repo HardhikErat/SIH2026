@@ -1,9 +1,8 @@
-import { motion, useScroll, useTransform } from 'motion/react';
-import { useRef } from 'react';
-import { colors, fonts, radius, space, shadow } from '../theme';
+import { ReactNode } from 'react';
+import { colors, fonts, radius } from '../theme';
 import { ScrollReveal } from './ScrollReveal';
 
-export type ScrollStep = { title: string; body: string; icon: string };
+export type ScrollStep = { title: string; body: string; icon: ReactNode };
 
 type Props = {
   title: string;
@@ -81,7 +80,6 @@ const stepIcon: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  fontSize: 28,
   marginBottom: 20,
 };
 

@@ -11,14 +11,20 @@ type Props = Omit<PressableProps, 'style'> & {
 
 export function MotionPressable({ children, style, disabled, onPress }: Props) {
   const reduced = useReducedMotion();
-  const flat = StyleSheet.flatten(style) as CSSProperties | undefined;
+  const flat = (StyleSheet.flatten(style) ?? {}) as CSSProperties;
 
   return (
     <motion.div
       role="button"
       tabIndex={disabled ? -1 : 0}
       aria-disabled={disabled || undefined}
-      style={{ cursor: disabled ? 'not-allowed' : 'pointer', ...flat }}
+      style={{
+        boxSizing: 'border-box',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        ...flat,
+        // RN alignItems/justifyContent only apply with flex; motion.div is not a RN View
+        display: 'flex',
+      }}
       onClick={disabled || !onPress ? undefined : () => onPress({} as Parameters<NonNullable<PressableProps['onPress']>>[0])}
       onKeyDown={(event) => {
         if (disabled || !onPress) return;
