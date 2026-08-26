@@ -14,9 +14,9 @@ from pydantic import BaseModel, ConfigDict, Field
 from core.schema import CollectedFields, Question
 
 # Fields that answer the same clinical question — semantic duplicate groups.
+# Note: takes_medication=true does NOT satisfy medications (name still needed).
 SEMANTIC_FIELD_GROUPS: list[frozenset[str]] = [
     frozenset({"duration", "duration_days"}),
-    frozenset({"medications", "takes_medication"}),
     frozenset({"allergies", "has_allergy"}),
 ]
 
@@ -82,6 +82,9 @@ def is_field_answered(fields: CollectedFields, field: str) -> bool:
             return True
     # duration_days alone answers duration questions
     if canonical == "duration" and fields.duration_days is not None:
+        return True
+    # Named meds or explicit "none"/"unspecified" answer takes_medication prompts
+    if canonical == "takes_medication" and fields.is_collected("medications"):
         return True
     return False
 

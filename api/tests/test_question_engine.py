@@ -43,3 +43,26 @@ def test_prefers_missing_fields():
     q = select_next_question(fields, missing_fields=["allergies"], question_count_so_far=1)
     assert q is not None
     assert q.field == "allergies"
+
+
+def test_yes_to_meds_prompts_name_once():
+    fields = _patient(
+        chief_complaint="SYM_FEVER",
+        complaint_category="fever",
+        duration="5 days",
+        duration_days=5,
+        severity="mild",
+        takes_medication="true",
+    )
+    q = select_next_question(fields, missing_fields=["medications"], question_count_so_far=3)
+    assert q is not None
+    assert q.id == "Q_MED_NAME"
+    assert q.field == "medications"
+    # After name question already asked, do not offer another meds question
+    q2 = select_next_question(
+        fields,
+        missing_fields=["medications"],
+        question_count_so_far=4,
+        asked_questions=["Q_MED_NAME:medications"],
+    )
+    assert q2 is None or q2.field != "medications"

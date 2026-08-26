@@ -22,7 +22,7 @@ from core.question_engine import detect_phase, question_text, select_next_questi
 from core.rule_engine import run_rule_engine
 from core.schema import CollectedFields, InputType, TurnRecord
 from core.speech_gateway import speech_gateway
-from core.utterance_enrichment import enrich_utterance_delta
+from core.utterance_enrichment import close_medication_name_if_declined, enrich_utterance_delta
 from db.supabase_client import get_store
 
 router = APIRouter()
@@ -162,6 +162,13 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
     merged = fields.merge_delta(delta)
     merged, review_terms = normalize_fields(merged)
     merged = infer_implied_fields(merged)
+    # If we already asked for the medicine name once and still have none, stop looping
+    merged = close_medication_name_if_declined(
+        utterance,
+        merged,
+        pending_field=pending_field,
+        asked_questions=asked_questions,
+    )
     rules = run_rule_engine(merged, delta=delta, turn_history=prior_turns, current_turn_id=body.turn_id)
 
     patient_turn = TurnRecord(
@@ -281,6 +288,9 @@ def _sanitize_reply(ai_text: str, fields: CollectedFields, next_field: str | Non
     text = (ai_text or "").strip()
     if not text:
         return text
+    # Never show leak-filter placeholders to patients
+    text = text.replace("[removed]", "")
+    text = re.sub(r"\s{2,}", " ", text).strip()
     lower = text.casefold()
     # Severity already known — remove the classic severity questionnaire sentence
     if fields.is_collected("severity") and next_field != "severity":
@@ -296,7 +306,7 @@ def _sanitize_reply(ai_text: str, fields: CollectedFields, next_field: str | Non
             text += "."
     # Duration already known
     if fields.is_collected("duration") and next_field != "duration":
-        if "how many days" in lower and "how many days" not in (next_field or ""):
+        if "how many days" in lower:
             text = re.sub(
                 r"\s*how many days has this been going on\??",
                 "",
@@ -304,6 +314,21 @@ def _sanitize_reply(ai_text: str, fields: CollectedFields, next_field: str | Non
                 flags=re.I,
             ).strip()
     return text or ai_text
+
+
+def _format_meds_chip(medications: object) -> str | None:
+    if medications in (None, "unknown"):
+        return None
+    if medications == "none":
+        return "No medicines"
+    if medications == "unspecified":
+        return "Medicines (name not given)"
+    if isinstance(medications, list):
+        names = [str(m).strip() for m in medications if str(m).strip()]
+        if not names:
+            return None
+        return ", ".join(n.title() if n.islower() else n for n in names)
+    return str(medications)
 
 
 def _chips(fields: CollectedFields) -> list[dict[str, str]]:
@@ -319,6 +344,7 @@ def _chips(fields: CollectedFields) -> list[dict[str, str]]:
         chips.append({"label": "Headache", "field": "headache"})
     if fields.fever == "true" and (not fields.chief_complaint or fields.chief_complaint != "SYM_FEVER"):
         chips.append({"label": "Fever", "field": "fever"})
-    if fields.medications not in ("unknown", None) and fields.medications != []:
-        chips.append({"label": str(fields.medications), "field": "medications"})
+    med_label = _format_meds_chip(fields.medications)
+    if med_label:
+        chips.append({"label": med_label, "field": "medications"})
     return chips

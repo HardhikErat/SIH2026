@@ -99,6 +99,18 @@ QUESTION_BANK: list[Question] = [
         priority_order=30,
     ),
     Question(
+        id="Q_MED_NAME",
+        complaint_category="*",
+        field="medications",
+        question_text_key="ask_medication_name",
+        question_text={
+            "en": "Which medicine are you taking? If you don't remember the name, just say so.",
+            "hi": "आप कौन सी दवाई ले रहे हैं? नाम याद नहीं है तो बता दीजिए।",
+            "mr": "तुम्ही कोणते औषध घेत आहात? नाव आठवत नसेल तर सांगा.",
+        },
+        priority_order=31,
+    ),
+    Question(
         id="Q_ALLERGY",
         complaint_category="*",
         field="allergies",
@@ -241,6 +253,7 @@ def select_next_question(
     ]
     # Drop semantic duplicates / already-asked field questions
     candidates = select_unasked_candidates(candidates, fields, asked)
+    candidates = _filter_medication_questions(candidates, fields, asked)
 
     if missing_fields and phase != ConsultationPhase.BASIC_DETAILS:
         missing_set = set(missing_fields)
@@ -270,6 +283,29 @@ def select_next_question(
             return None
         return GENERIC_FOLLOWUP
     return ranked[0]
+
+
+def _filter_medication_questions(
+    candidates: list[Question],
+    fields: CollectedFields,
+    asked: list[str],
+) -> list[Question]:
+    """Ask yes/no first; if yes without a name, ask the name once — never both at once."""
+    med_name_asked = any(qid.startswith("Q_MED_NAME:") for qid in asked)
+    out: list[Question] = []
+    for q in candidates:
+        if q.field != "medications":
+            out.append(q)
+            continue
+        if fields.takes_medication == "true":
+            # Need the name (or a decline) — only the follow-up question
+            if q.id == "Q_MED_NAME" and not med_name_asked:
+                out.append(q)
+        else:
+            # Still need the yes/no (+ optional name in one answer)
+            if q.id == "Q_MEDS":
+                out.append(q)
+    return out
 
 
 def question_text(question: Question, language: str) -> str:

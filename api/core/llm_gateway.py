@@ -100,7 +100,12 @@ Rules:
 """
 
 DIAGNOSIS_LEAK = re.compile(
-    r"\b(diagnos(?:is|e|ed)|prescribe|prescription|you (?:have|should take)|treatment plan)\b",
+    r"\b("
+    r"diagnos(?:is|e|ed|ing)|"
+    r"prescribe|prescription|"
+    r"treatment plan|"
+    r"you should take\b"
+    r")\b",
     re.I,
 )
 
@@ -546,9 +551,13 @@ class LLMGateway:
 
 
 def _strip_clinical_leaks(text: str) -> str:
-    if DIAGNOSIS_LEAK.search(text):
-        return re.sub(DIAGNOSIS_LEAK, "[removed]", text)
-    return text
+    """Remove unsafe clinical advice phrases without leaving '[removed]' placeholders."""
+    cleaned = DIAGNOSIS_LEAK.sub("", text)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned)
+    cleaned = re.sub(r"\s+([,.!?])", r"\1", cleaned)
+    # Never surface the old placeholder if a prior model version left it in
+    cleaned = cleaned.replace("[removed]", "").replace("  ", " ")
+    return cleaned.strip()
 
 
 def _default_providers() -> list[LLMProvider]:

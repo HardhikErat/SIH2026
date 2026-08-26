@@ -52,4 +52,20 @@ def test_stub_phrases_followup():
 def test_strip_diagnosis_leak():
     text = "You should take antibiotics. Patient reports fever."
     cleaned = _strip_clinical_leaks(text)
-    assert "should take" not in cleaned.lower() or "[removed]" in cleaned
+    assert "should take" not in cleaned.lower()
+    assert "[removed]" not in cleaned
+    assert "Patient reports fever" in cleaned
+
+
+def test_strip_does_not_mangle_you_have():
+    text = "Do you have any medicine or food allergies?"
+    cleaned = _strip_clinical_leaks(text)
+    assert cleaned == text
+    assert "[removed]" not in cleaned
+
+
+def test_strip_clears_legacy_removed_placeholder():
+    text = "You said [removed] no other symptoms."
+    cleaned = _strip_clinical_leaks(text)
+    assert "[removed]" not in cleaned
+    assert "no other symptoms" in cleaned.lower()

@@ -101,7 +101,7 @@ class CollectedFields(BaseModel):
     severity: Severity = "unknown"
     symptoms: list[SymptomItem] = Field(default_factory=list)
     medical_history: list[str] | UnknownStr = "unknown"
-    medications: list[str] | Literal["none"] | UnknownStr = "unknown"
+    medications: list[str] | Literal["none", "unspecified"] | UnknownStr = "unknown"
     takes_medication: ClinicalTriState = "unknown"
     allergies: str | Literal["none"] | UnknownStr = "unknown"
     has_allergy: ClinicalTriState = "unknown"
@@ -183,7 +183,7 @@ class ExtractionDelta(BaseModel):
     severity: Severity | None = None
     symptoms: list[SymptomItem] | None = None
     medical_history: list[str] | Literal["unknown"] | None = None
-    medications: list[str] | Literal["none", "unknown"] | None = None
+    medications: list[str] | Literal["none", "unknown", "unspecified"] | None = None
     takes_medication: ClinicalTriState | None = None
     allergies: str | Literal["none", "unknown"] | None = None
     has_allergy: ClinicalTriState | None = None
