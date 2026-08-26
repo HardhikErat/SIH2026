@@ -138,7 +138,7 @@ function AnimatedPupil({
   const originY = clip.cy - clip.ry;
 
   return (
-    <View pointerEvents="none" style={box}>
+    <View pointerEvents="none" style={[box, { pointerEvents: 'none' }]}>
       <Animated.View style={style}>
         <Svg width="100%" height="100%" viewBox={`${originX} ${originY} ${clip.rx * 2} ${clip.ry * 2}`}>
           <Defs>
