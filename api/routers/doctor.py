@@ -7,9 +7,11 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from auth.supabase_auth import require_staff
+from core.aadhaar import mask_aadhaar
 from core.config import settings
 from core.errors import ApiException
-from core.schema import IntakeStatus
+from core.history_insights import analyze_patient_history, serialize_history_entry
+from core.schema import CollectedFields, IntakeStatus
 from db.supabase_client import get_store
 
 router = APIRouter()
@@ -79,6 +81,7 @@ def doctor_queue(principal: dict = Depends(require_staff)) -> dict:
                 "intake_id": item["id"],
                 "patient_id": item.get("patient_id"),
                 "display_name": patient.get("display_name") or "Patient",
+                "aadhaar_masked": mask_aadhaar(patient.get("aadhaar_last4") or item.get("aadhaar_last4")),
                 "priority_flag": item.get("priority_flag"),
                 "chief_complaint": item.get("chief_complaint"),
                 "wait_seconds": wait,
@@ -97,10 +100,34 @@ def doctor_intake(intake_id: str, principal: dict = Depends(require_staff)) -> d
     if not intake:
         raise ApiException(404, "INTAKE_NOT_FOUND", "Intake does not exist.")
     audit = store.list_audit(intake_id)
+    patient = store.get_patient(intake.get("patient_id") or "") or {}
+    hashed = intake.get("aadhaar_hash") or patient.get("aadhaar_hash")
+    history_rows: list = []
+    if hashed:
+        history_rows = store.list_intakes_by_aadhaar_hash(hashed, exclude_intake_id=intake_id)
+    elif intake.get("patient_id"):
+        history_rows = store.list_intakes_by_patient(intake["patient_id"], exclude_intake_id=intake_id)
+
+    current_fields = CollectedFields.model_validate(intake.get("structured_fields") or {})
+    if not current_fields.aadhaar_last4:
+        current_fields.aadhaar_last4 = intake.get("aadhaar_last4") or patient.get("aadhaar_last4")
+    analysis = analyze_patient_history(current_fields, history_rows)
+
     return {
         **intake,
         "audit_log": audit,
         "source_tag": "AI_GENERATED" if intake.get("status") == IntakeStatus.AI_GENERATED.value else "DOCTOR_VERIFIED",
+        "patient": {
+            "id": patient.get("id"),
+            "display_name": patient.get("display_name"),
+            "age": patient.get("age"),
+            "gender": patient.get("gender"),
+            "aadhaar_masked": mask_aadhaar(patient.get("aadhaar_last4") or intake.get("aadhaar_last4")),
+        },
+        "medical_history_timeline": [serialize_history_entry(r) for r in history_rows],
+        "historical_insights": analysis.get("insights") or [],
+        "historical_insights_overview": analysis.get("overview"),
+        "prior_visit_count": analysis.get("prior_visit_count") or 0,
     }
 
 

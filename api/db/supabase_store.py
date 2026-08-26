@@ -56,6 +56,48 @@ class SupabaseStore:
         res = self.client.table("patients").insert(kwargs).execute()
         return res.data[0]
 
+    def get_patient(self, patient_id: str) -> dict | None:
+        res = self.client.table("patients").select("*").eq("id", patient_id).limit(1).execute()
+        return res.data[0] if res.data else None
+
+    def find_patient_by_aadhaar_hash(self, aadhaar_hash: str) -> dict | None:
+        res = (
+            self.client.table("patients")
+            .select("*")
+            .eq("aadhaar_hash", aadhaar_hash)
+            .limit(1)
+            .execute()
+        )
+        return res.data[0] if res.data else None
+
+    def list_intakes_by_patient(
+        self, patient_id: str, *, exclude_intake_id: str | None = None
+    ) -> list[dict]:
+        q = (
+            self.client.table("intakes")
+            .select("*")
+            .eq("patient_id", patient_id)
+            .order("created_at", desc=True)
+        )
+        items = q.execute().data or []
+        if exclude_intake_id:
+            items = [r for r in items if r.get("id") != exclude_intake_id]
+        return items
+
+    def list_intakes_by_aadhaar_hash(
+        self, aadhaar_hash: str, *, exclude_intake_id: str | None = None
+    ) -> list[dict]:
+        q = (
+            self.client.table("intakes")
+            .select("*")
+            .eq("aadhaar_hash", aadhaar_hash)
+            .order("created_at", desc=True)
+        )
+        items = q.execute().data or []
+        if exclude_intake_id:
+            items = [r for r in items if r.get("id") != exclude_intake_id]
+        return items
+
     def update_patient(self, patient_id: str, **kwargs: Any) -> dict:
         res = self.client.table("patients").update(kwargs).eq("id", patient_id).execute()
         return res.data[0]

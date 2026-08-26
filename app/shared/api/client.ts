@@ -50,6 +50,7 @@ export const api = {
     camp_id?: string;
     age?: number;
     gender?: string;
+    aadhaar_number: string;
   }) =>
     request<{
       session_id: string;
@@ -57,6 +58,9 @@ export const api = {
       token: string;
       language: LanguageOption;
       ai_message: string;
+      returning_patient?: boolean;
+      prior_visit_count?: number;
+      aadhaar_masked?: string;
     }>('/session/start', { method: 'POST', body: JSON.stringify(body) }),
   translate: (text: string, source_language: string, target_language: string) =>
     request<{ translated_text: string }>('/translate', {
@@ -142,10 +146,35 @@ export type TurnResponse = {
 export type QueueItem = {
   intake_id: string;
   display_name: string;
+  aadhaar_masked?: string;
   priority_flag: string;
   chief_complaint?: string;
   wait_seconds?: number;
   status: string;
+};
+
+export type HistoricalInsight = {
+  relevance: 'high' | 'medium' | 'low';
+  category: string;
+  title: string;
+  detail: string;
+  prior_intake_id?: string | null;
+  prior_date?: string | null;
+};
+
+export type MedicalHistoryEntry = {
+  intake_id: string;
+  created_at?: string | null;
+  chief_complaint?: string | null;
+  duration?: string | null;
+  ai_summary?: string | null;
+  consultation_summary?: Record<string, unknown> | null;
+  priority_flag?: string | null;
+  status?: string | null;
+  symptoms?: unknown[];
+  medications?: unknown;
+  allergies?: string | null;
+  turn_history?: { speaker?: string; text?: string }[];
 };
 
 export type DoctorIntake = {
@@ -164,6 +193,19 @@ export type DoctorIntake = {
   medical_history?: unknown;
   source_tag?: string;
   audit_log?: { field_name: string; old_value: unknown; new_value: unknown; changed_at: string }[];
+  patient?: {
+    id?: string;
+    display_name?: string;
+    age?: number;
+    gender?: string;
+    aadhaar_masked?: string;
+  };
+  medical_history_timeline?: MedicalHistoryEntry[];
+  historical_insights?: HistoricalInsight[];
+  historical_insights_overview?: string;
+  prior_visit_count?: number;
+  turn_history?: { speaker?: string; text?: string }[];
+  consultation_summary?: Record<string, unknown>;
 };
 
 export { colors };

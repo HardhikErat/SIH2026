@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Switch, Text, View, TextInput, Pressable } from 'react-native';
 import { api } from '../../shared/api/client';
 import { AppHeader } from '../../shared/components/AppHeader';
@@ -12,7 +12,7 @@ import { StatusPill } from '../../shared/components/StatusPill';
 import { speak } from '../../shared/hooks/useTts';
 import { t } from '../../shared/i18n';
 import { useSession } from '../../shared/store/session';
-import { colors, fonts, radius, space, typography } from '../../shared/theme';
+import { colors, fonts, space, typography } from '../../shared/theme';
 
 export default function PatientEntry() {
   const [language, setLanguage] = useState('hi');
@@ -21,12 +21,36 @@ export default function PatientEntry() {
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState<string | null>(null);
-  const { setLanguage: setStoreLang, setAudioConsent, start } = useSession();
+  const [aadhaar, setAadhaar] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
+  const { setLanguage: setStoreLang, setAudioConsent, start, sessionId } = useSession();
+
+  // Kiosk privacy: clear registration fields whenever we land here without an active session.
+  useFocusEffect(
+    useCallback(() => {
+      if (sessionId) return;
+      setConsent(false);
+      setLoading(false);
+      setName('');
+      setAge('');
+      setGender(null);
+      setAadhaar('');
+      setFormError(null);
+    }, [sessionId]),
+  );
 
   const langs = useQuery({ queryKey: ['languages'], queryFn: () => api.languages() });
   const health = useQuery({ queryKey: ['health'], queryFn: () => api.health() });
 
+  const aadhaarDigits = aadhaar.replace(/\D/g, '');
+  const aadhaarValid = aadhaarDigits.length === 12;
+
   const onStart = async () => {
+    if (!aadhaarValid) {
+      setFormError('Enter a valid 12-digit Aadhaar number.');
+      return;
+    }
+    setFormError(null);
     setLoading(true);
     try {
       setStoreLang(language);
@@ -37,6 +61,7 @@ export default function PatientEntry() {
         display_name: name.trim() || undefined,
         age: age ? parseInt(age, 10) : undefined,
         gender: gender || undefined,
+        aadhaar_number: aadhaarDigits,
       });
       start(res.session_id, res.token, res.ai_message, {
         name: name.trim(),
@@ -45,6 +70,8 @@ export default function PatientEntry() {
       });
       speak(res.ai_message, language);
       router.push(`/(patient)/intake/${res.session_id}`);
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : 'Could not start session.');
     } finally {
       setLoading(false);
     }
@@ -105,6 +132,21 @@ export default function PatientEntry() {
             </Pressable>
           ))}
         </View>
+
+        <Text style={styles.label}>Aadhaar number</Text>
+        <TextInput
+          style={styles.input}
+          value={aadhaar}
+          onChangeText={(v) => setAadhaar(v.replace(/[^\d\s-]/g, '').slice(0, 14))}
+          keyboardType="number-pad"
+          placeholder="12-digit Aadhaar"
+          placeholderTextColor={colors.inkMuted}
+          maxLength={14}
+        />
+        <Text style={styles.hint}>
+          Used as your secure patient ID to find earlier visits. Stored hashed — not shown in full.
+        </Text>
+        {formError ? <Text style={styles.error}>{formError}</Text> : null}
       </Card>
 
       <Card>
@@ -129,7 +171,7 @@ export default function PatientEntry() {
       <PrimaryButton 
         label={t(language, 'start')} 
         onPress={onStart} 
-        disabled={loading || !name.trim() || !age || !gender} 
+        disabled={loading || !name.trim() || !age || !gender || !aadhaarValid} 
       />
     </Screen>
   );
@@ -143,8 +185,10 @@ const styles = StyleSheet.create({
   consentCopy: { flex: 1, gap: space[1] },
   consentTitle: { ...typography.body, fontFamily: fonts.uiSemiBold },
   consentHint: { ...typography.caption },
-  formCard: { padding: space[4], gap: space[4] },
+  formCard: { padding: space[4], gap: space[4], marginBottom: space[4] },
   label: { ...typography.body, fontFamily: fonts.uiSemiBold, color: colors.ink },
+  hint: { ...typography.caption, marginTop: -space[2] },
+  error: { ...typography.caption, color: colors.statusUrgent },
   input: {
     borderWidth: 1,
     borderColor: colors.line,
@@ -155,30 +199,20 @@ const styles = StyleSheet.create({
     color: colors.ink,
     backgroundColor: colors.white,
   },
-  genderRow: { flexDirection: 'row', gap: space[3] },
+  genderRow: { flexDirection: 'row', gap: space[2] },
   genderBtn: {
     flex: 1,
-    minHeight: 48,
-    paddingVertical: space[3],
-    paddingHorizontal: space[4],
-    borderRadius: radius.lg,
-    borderWidth: 1.5,
-    borderColor: colors.teal700,
-    backgroundColor: colors.white,
+    paddingVertical: space[2],
+    paddingHorizontal: space[3],
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.line,
     alignItems: 'center',
-    justifyContent: 'center',
   },
   genderBtnActive: {
-    backgroundColor: colors.teal500,
-    borderColor: colors.teal500,
+    backgroundColor: colors.teal700,
+    borderColor: colors.teal700,
   },
-  genderText: {
-    ...typography.body,
-    color: colors.teal700,
-    fontFamily: fonts.uiSemiBold,
-    fontSize: 16,
-    lineHeight: 24,
-    textAlign: 'center',
-  },
+  genderText: { ...typography.body, color: colors.ink },
   genderTextActive: { color: colors.white, fontFamily: fonts.uiSemiBold },
 });

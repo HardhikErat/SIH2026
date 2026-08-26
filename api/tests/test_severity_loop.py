@@ -8,7 +8,13 @@ client = TestClient(app)
 def test_severity_answer_does_not_loop():
     start = client.post(
         "/api/v1/session/start",
-        json={"language": "en", "display_name": "Ravi", "age": 30, "gender": "male"},
+        json={
+            "language": "en",
+            "display_name": "Ravi",
+            "age": 30,
+            "gender": "male",
+            "aadhaar_number": "234567890123",
+        },
     )
     assert start.status_code == 200
     sid, token = start.json()["session_id"], start.json()["token"]
@@ -23,9 +29,6 @@ def test_severity_answer_does_not_loop():
         },
         headers=h,
     )
-    # Force severity as pending by answering until severity is next, or seed pending
-    # Direct path: send severity answer with pending set via a prior turn that asked it
-    state = client.get(f"/api/v1/conversation/{sid}/state", headers=h).json()
     # Keep turning with non-severity answers until severity is asked, max 5
     for i in range(5):
         pending = client.post(

@@ -150,6 +150,22 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
         pending_field=pending_field,
         collected=fields,
     )
+    # Capture Aadhaar from utterance / delta without storing the full number in fields
+    from core.aadhaar import aadhaar_hash, aadhaar_last4, normalize_aadhaar
+
+    raw_aadhaar = normalize_aadhaar(str(delta.pop("aadhaar_number", "") or ""))
+    if not raw_aadhaar:
+        raw_aadhaar = normalize_aadhaar(utterance)
+    if raw_aadhaar and (pending_field == "aadhaar_last4" or not fields.aadhaar_last4):
+        delta["aadhaar_last4"] = aadhaar_last4(raw_aadhaar)
+        session["aadhaar_hash"] = aadhaar_hash(raw_aadhaar)
+        store.update_patient(
+            session["patient_id"],
+            aadhaar_hash=session["aadhaar_hash"],
+            aadhaar_last4=delta["aadhaar_last4"],
+        )
+    delta.pop("aadhaar_number", None)
+
     # Normalize severity casing from LLM ("Mild" → "mild")
     if isinstance(delta.get("severity"), str):
         sev = delta["severity"].strip().casefold()

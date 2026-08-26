@@ -95,9 +95,9 @@ const styles = StyleSheet.create({
     gap: space[5],
   },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: space[3], flexWrap: 'wrap' },
-  heroRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space[5] },
-  heroCopy: { flex: 1, minWidth: 260, gap: space[4] },
-  heroRobot: { flex: 1, minWidth: 220, maxWidth: 420 },
+  heroRow: { flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center', gap: space[5] },
+  heroCopy: { flex: 1.1, minWidth: 0, gap: space[4] },
+  heroRobot: { flex: 0.9, minWidth: 0, maxWidth: 360 },
   heroTitle: {
     ...typography.headline,
     color: colors.white,

@@ -58,6 +58,18 @@ BASIC_DETAILS_QUESTIONS: list[Question] = [
         },
         priority_order=2,
     ),
+    Question(
+        id="Q_AADHAAR",
+        complaint_category="*",
+        field="aadhaar_last4",
+        question_text_key="ask_aadhaar",
+        question_text={
+            "en": "Please share your 12-digit Aadhaar number. It helps us find your earlier visits securely.",
+            "hi": "कृपया अपना 12 अंकों का आधार नंबर बताएं। इससे हम आपकी पिछली विज़िट सुरक्षित रूप से ढूँढ सकेंगे।",
+            "mr": "कृपया तुमचा 12 अंकी आधार क्रमांक सांगा. यामुळे आम्ही तुमच्या आधीच्या भेटी सुरक्षितपणे शोधू शकतो.",
+        },
+        priority_order=3,
+    ),
 ]
 
 # Seed question bank (also persisted in Supabase question_bank). Clinician-editable data.
@@ -214,7 +226,8 @@ def detect_phase(fields: CollectedFields) -> ConsultationPhase:
     has_name = fields.is_collected("display_name")
     has_age = fields.is_collected("age")
     has_gender = fields.gender not in ("unknown", None)
-    if not (has_name and has_age and has_gender):
+    has_aadhaar = fields.is_collected("aadhaar_last4")
+    if not (has_name and has_age and has_gender and has_aadhaar):
         return ConsultationPhase.BASIC_DETAILS
     return ConsultationPhase.CONSULTATION
 

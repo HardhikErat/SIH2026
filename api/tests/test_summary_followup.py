@@ -1,7 +1,7 @@
-from core.schema import CollectedFields
-from core.summary_builder import build_summary_from_fields, merge_summary_with_fields
 from fastapi.testclient import TestClient
 
+from core.schema import CollectedFields
+from core.summary_builder import build_summary_from_fields, merge_summary_with_fields
 from main import app
 
 client = TestClient(app)
@@ -39,7 +39,12 @@ def test_merge_keeps_field_medications():
         medications=["paracetamol"],
         takes_medication="true",
     )
-    llm = {"main_complaint": "Fever", "symptoms": ["Fever"], "current_medications": [], "observations": ["Fever noted."]}
+    llm = {
+        "main_complaint": "Fever",
+        "symptoms": ["Fever"],
+        "current_medications": [],
+        "observations": ["Fever noted."],
+    }
     merged = merge_summary_with_fields(llm, fields, "en")
     assert merged["current_medications"] == ["paracetamol"]
 
@@ -47,7 +52,13 @@ def test_merge_keeps_field_medications():
 def test_continue_talking_regenerates_summary_without_blocking_chat_contract():
     start = client.post(
         "/api/v1/session/start",
-        json={"language": "mr", "display_name": "r", "age": 22, "gender": "male"},
+        json={
+            "language": "mr",
+            "display_name": "r",
+            "age": 22,
+            "gender": "male",
+            "aadhaar_number": "234567890123",
+        },
     )
     sid, token = start.json()["session_id"], start.json()["token"]
     h = {"Authorization": f"Bearer {token}"}

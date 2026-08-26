@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useMemo, type Ref } from 'react';
 import {
   Image as RasterImage,
+  Platform,
   type GestureResponderEvent,
   type LayoutChangeEvent,
   type NativeSyntheticEvent,
@@ -10,34 +11,22 @@ import {
   View,
 } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import Svg, {
-  Circle,
-  ClipPath,
-  Defs,
-  Ellipse,
-  G,
-  Image,
-  Path,
-  RadialGradient,
-  Stop,
-} from 'react-native-svg';
+import Svg, { Circle, ClipPath, Defs, Ellipse, G, Path, RadialGradient, Stop } from 'react-native-svg';
 import {
   LEFT_EYE_CLIP,
-  LEFT_EYE_SOCKET,
   LEFT_PUPIL,
   MAX_PUPIL_TRAVEL,
-  MOUTH_PATH,
   RIGHT_EYE_CLIP,
-  RIGHT_EYE_SOCKET,
   RIGHT_PUPIL,
   ROBOT_CANVAS,
+  VISOR_SMILE,
   type EyeCenter,
   type EyeSocket,
   type LayoutBounds,
   type PupilMarkup,
 } from './robotEyesGeometry';
 
-const ROBOT_ASSET = require('../../assets/images/base-robot.png') as number;
+const ROBOT_ASSET = require('../../assets/images/base-robot-prev.png') as number;
 
 const PUPIL_TIMING = {
   duration: 60,
@@ -85,6 +74,33 @@ function pupilTranslate(
   }
   const scale = Math.min(1, maxRadius / length) * active;
   return { translateX: dx * scale, translateY: dy * scale };
+}
+
+function pupilLayerStyle(
+  localX: number,
+  localY: number,
+  layoutW: number,
+  layoutH: number,
+  eye: EyeCenter,
+  maxRadius: number,
+  active: number,
+) {
+  'worklet';
+  const t = pupilTranslate(localX, localY, layoutW, layoutH, eye, maxRadius, active);
+  const x = t.translateX * (layoutW / ROBOT_CANVAS.width);
+  const y = t.translateY * (layoutH / ROBOT_CANVAS.height);
+  if (Platform.OS === 'web') {
+    return {
+      width: '100%' as const,
+      height: '100%' as const,
+      transform: `translate(${x}px, ${y}px)`,
+    };
+  }
+  return {
+    width: '100%' as const,
+    height: '100%' as const,
+    transform: [{ translateX: x }, { translateY: y }],
+  };
 }
 
 function PupilGraphic({ pupil, glowId }: { pupil: PupilMarkup; glowId: string }) {
@@ -151,10 +167,11 @@ function AnimatedPupil({
                 transform={`rotate(${clip.rotateDeg}, ${clip.cx}, ${clip.cy})`}
               />
             </ClipPath>
-            <RadialGradient id={glowId} cx="50%" cy="50%" r="50%">
-              <Stop offset="0%" stopColor="#00f0ff" />
-              <Stop offset="70%" stopColor="#0066cc" />
-              <Stop offset="100%" stopColor="#001a4d" />
+            <RadialGradient id={glowId} cx="42%" cy="38%" r="62%">
+              <Stop offset="0%" stopColor="#e7ffff" />
+              <Stop offset="28%" stopColor="#5dfff8" />
+              <Stop offset="72%" stopColor="#00b4ff" />
+              <Stop offset="100%" stopColor="#004a99" />
             </RadialGradient>
           </Defs>
           <G id={groupId} clipPath={`url(#${clipId})`}>
@@ -244,8 +261,8 @@ function RobotEyesInner(
     [mapAndTrack],
   );
 
-  const leftPupilStyle = useAnimatedStyle(() => {
-    const t = pupilTranslate(
+  const leftPupilStyle = useAnimatedStyle(() =>
+    pupilLayerStyle(
       pointerLocalX.value,
       pointerLocalY.value,
       layoutWidth.value,
@@ -253,18 +270,11 @@ function RobotEyesInner(
       LEFT_PUPIL,
       maxTravel.value,
       tracking.value,
-    );
-    const sx = layoutWidth.value / ROBOT_CANVAS.width;
-    const sy = layoutHeight.value / ROBOT_CANVAS.height;
-    return {
-      width: '100%' as const,
-      height: '100%' as const,
-      transform: [{ translateX: t.translateX * sx }, { translateY: t.translateY * sy }],
-    };
-  });
+    ),
+  );
 
-  const rightPupilStyle = useAnimatedStyle(() => {
-    const t = pupilTranslate(
+  const rightPupilStyle = useAnimatedStyle(() =>
+    pupilLayerStyle(
       pointerLocalX.value,
       pointerLocalY.value,
       layoutWidth.value,
@@ -272,15 +282,8 @@ function RobotEyesInner(
       RIGHT_PUPIL,
       maxTravel.value,
       tracking.value,
-    );
-    const sx = layoutWidth.value / ROBOT_CANVAS.width;
-    const sy = layoutHeight.value / ROBOT_CANVAS.height;
-    return {
-      width: '100%' as const,
-      height: '100%' as const,
-      transform: [{ translateX: t.translateX * sx }, { translateY: t.translateY * sy }],
-    };
-  });
+    ),
+  );
 
   const webPointerProps = {
     onPointerMove,
@@ -307,32 +310,14 @@ function RobotEyesInner(
     >
       <RasterImage source={ROBOT_ASSET} style={styles.baseImage} resizeMode="contain" />
 
-      <Svg
-        style={StyleSheet.absoluteFill}
-        width="100%"
-        height="100%"
-        viewBox={`0 0 ${ROBOT_CANVAS.width} ${ROBOT_CANVAS.height}`}
-        preserveAspectRatio="xMidYMid meet"
-      >
-        <Image href={ROBOT_ASSET} x={0} y={0} width={ROBOT_CANVAS.width} height={ROBOT_CANVAS.height} />
-        <Ellipse
-          cx={LEFT_EYE_SOCKET.cx}
-          cy={LEFT_EYE_SOCKET.cy}
-          rx={LEFT_EYE_SOCKET.rx}
-          ry={LEFT_EYE_SOCKET.ry}
-          fill="#0c1a30"
-          transform={`rotate(${LEFT_EYE_SOCKET.rotateDeg}, ${LEFT_EYE_SOCKET.cx}, ${LEFT_EYE_SOCKET.cy})`}
+      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" viewBox={`0 0 ${ROBOT_CANVAS.width} ${ROBOT_CANVAS.height}`}>
+        <Path
+          d={VISOR_SMILE.d}
+          fill="none"
+          stroke={VISOR_SMILE.stroke}
+          strokeWidth={VISOR_SMILE.strokeWidth}
+          strokeLinecap={VISOR_SMILE.strokeLinecap}
         />
-        <Ellipse
-          cx={RIGHT_EYE_SOCKET.cx}
-          cy={RIGHT_EYE_SOCKET.cy}
-          rx={RIGHT_EYE_SOCKET.rx}
-          ry={RIGHT_EYE_SOCKET.ry}
-          fill="#0c1a30"
-          transform={`rotate(${RIGHT_EYE_SOCKET.rotateDeg}, ${RIGHT_EYE_SOCKET.cx}, ${RIGHT_EYE_SOCKET.cy})`}
-        />
-        <Path d={MOUTH_PATH} fill="none" stroke="#00f0ff" strokeWidth={14} strokeLinecap="round" opacity={0.35} />
-        <Path d={MOUTH_PATH} fill="none" stroke="#00f0ff" strokeWidth={7} strokeLinecap="round" />
       </Svg>
 
       <AnimatedPupil
@@ -367,7 +352,7 @@ const styles = StyleSheet.create({
   },
   flexHost: {
     width: '100%',
-    maxWidth: 520,
+    maxWidth: 640,
   },
   baseImage: {
     ...StyleSheet.absoluteFill,

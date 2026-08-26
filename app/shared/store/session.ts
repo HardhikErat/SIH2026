@@ -72,6 +72,7 @@ export const useSession = create<SessionState>((set) => ({
     set({
       sessionId: null,
       token: null,
+      audioConsent: false,
       chips: [],
       turns: [],
       phase: 'basic_details',

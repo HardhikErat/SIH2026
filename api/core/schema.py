@@ -92,6 +92,7 @@ class CollectedFields(BaseModel):
     display_name: str | None = None
     age: int | None = None
     gender: str | UnknownStr = "unknown"
+    aadhaar_last4: str | None = None
     preferred_language: str | None = None
     dialect_hint: str | None = None
     chief_complaint: str | None = None
@@ -176,6 +177,8 @@ class ExtractionDelta(BaseModel):
     display_name: str | None = None
     age: int | None = None
     gender: str | None = None
+    aadhaar_number: str | None = None
+    aadhaar_last4: str | None = None
     chief_complaint: str | None = None
     complaint_category: str | None = None
     duration: str | None = None
@@ -251,6 +254,36 @@ class LanguageOption(BaseModel):
     tier: int
     asr_supported: bool
     tts_supported: bool
+
+
+class HistoricalInsight(BaseModel):
+    """Doctor-facing link between prior visits and the current complaint."""
+
+    model_config = ConfigDict(extra="ignore")
+
+    relevance: Literal["high", "medium", "low"] = "medium"
+    category: str = "history"
+    title: str
+    detail: str
+    prior_intake_id: str | None = None
+    prior_date: str | None = None
+
+
+class PatientHistoryEntry(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    intake_id: str
+    created_at: str | None = None
+    chief_complaint: str | None = None
+    duration: str | None = None
+    ai_summary: str | None = None
+    consultation_summary: dict[str, Any] | None = None
+    priority_flag: str | None = None
+    status: str | None = None
+    symptoms: list[Any] = Field(default_factory=list)
+    medications: Any = None
+    allergies: str | None = None
+    turn_history: list[Any] = Field(default_factory=list)
 
 
 class ApiError(BaseModel):

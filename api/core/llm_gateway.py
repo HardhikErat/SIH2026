@@ -56,7 +56,9 @@ Few-shot examples:
 2) Patient: "4 din se bimaar hu"
    {{"duration":"4 days","duration_days":4,"chief_complaint":"SYM_FEVER","complaint_category":"default"}}
 3) Patient: "I've been sick for 4 days and I have a headache since yesterday."
-   {{"duration":"4 days","duration_days":4,"chief_complaint":"SYM_HEADACHE","complaint_category":"headache","headache":"true","symptoms":[{{"concept_id":"SYM_HEADACHE","duration":"1 day"}}]}}
+   {{"duration":"4 days","duration_days":4,"chief_complaint":"SYM_HEADACHE",
+     "complaint_category":"headache","headache":"true",
+     "symptoms":[{{"concept_id":"SYM_HEADACHE","duration":"1 day"}}]}}
 4) Patient: "sine mein dard, saans lene mein takleef"
    {{"chief_complaint":"SYM_CHEST_PAIN","complaint_category":"chest_pain","chest_pain":"true","breathing_difficulty":"true"}}
 5) Patient: "fever and cough, mild headache"
@@ -64,7 +66,8 @@ Few-shot examples:
 6) Earlier duration 4 days; now "Actually, it's been 5 days."
    {{"duration":"5 days","duration_days":5}}
 7) Patient: "kal se headache hai"
-   {{"chief_complaint":"SYM_HEADACHE","complaint_category":"headache","headache":"true","duration":"1 day","duration_days":1}}
+   {{"chief_complaint":"SYM_HEADACHE","complaint_category":"headache",
+     "headache":"true","duration":"1 day","duration_days":1}}
 8) Earlier medications none; now "I took my BP tablet"
    {{"medications":["BP tablet"],"takes_medication":"true"}}
 9) Patient: "no medicines"
@@ -472,7 +475,8 @@ class LLMGateway:
 
         grounded = build_summary_from_fields(fields, language)
         system = (
-            f"You are a clinical assistant. Generate a structured consultation summary for the patient in language code {language}. "
+            "You are a clinical assistant. Generate a structured consultation "
+            f"summary for the patient in language code {language}. "
             "Output ONLY valid JSON matching the provided schema. "
             "Include patient details, main complaint, symptoms, duration, medications, allergies, and observations. "
             "Use ONLY facts from collected_fields — do not invent symptoms or medicines. "

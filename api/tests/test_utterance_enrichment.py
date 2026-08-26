@@ -10,6 +10,7 @@ def _patient(**kwargs) -> CollectedFields:
         display_name="Ravi",
         age=30,
         gender="male",
+        aadhaar_last4="0123",
         chief_complaint="SYM_FEVER",
         complaint_category="fever",
         duration="6 days",

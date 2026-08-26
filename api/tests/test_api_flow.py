@@ -7,8 +7,17 @@ from main import app
 client = TestClient(app)
 
 
-def _patient_session(language="en"):
-    r = client.post("/api/v1/session/start", json={"language": language, "display_name": "Ravi"})
+def _patient_session(language="en", aadhaar="234567890123"):
+    r = client.post(
+        "/api/v1/session/start",
+        json={
+            "language": language,
+            "display_name": "Ravi",
+            "age": 34,
+            "gender": "male",
+            "aadhaar_number": aadhaar,
+        },
+    )
     assert r.status_code == 200, r.text
     data = r.json()
     return data["session_id"], data["token"]

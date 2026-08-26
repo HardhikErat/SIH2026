@@ -3,7 +3,7 @@ from core.schema import CollectedFields
 
 
 def _patient(**kwargs) -> CollectedFields:
-    base = dict(display_name="Ravi", age=30, gender="male")
+    base = dict(display_name="Ravi", age=30, gender="male", aadhaar_last4="0123")
     base.update(kwargs)
     return CollectedFields(**base)
 

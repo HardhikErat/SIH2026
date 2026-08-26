@@ -14,7 +14,16 @@ def main() -> None:
         health = client.get("/health")
         assert health.status_code == 200, health.text
 
-        start = client.post("/session/start", json={"language": "hi", "display_name": "E2E Patient"})
+        start = client.post(
+            "/session/start",
+            json={
+                "language": "hi",
+                "display_name": "E2E Patient",
+                "age": 35,
+                "gender": "male",
+                "aadhaar_number": "234567890123",
+            },
+        )
         assert start.status_code == 200, start.text
         data = start.json()
         sid, token = data["session_id"], data["token"]

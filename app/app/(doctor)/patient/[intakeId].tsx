@@ -2,10 +2,14 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { api, DoctorIntake } from '../../../shared/api/client';
+import { api } from '../../../shared/api/client';
 import { AppHeader } from '../../../shared/components/AppHeader';
 import { EditableField } from '../../../shared/components/EditableField';
 import { FlagBadge } from '../../../shared/components/FlagBadge';
+import {
+  HistoricalInsightsPanel,
+  MedicalHistoryTimeline,
+} from '../../../shared/components/PatientHistoryPanels';
 import { PrimaryButton } from '../../../shared/components/PrimaryButton';
 import { Screen } from '../../../shared/components/Screen';
 import { StatusPill } from '../../../shared/components/StatusPill';
@@ -51,6 +55,9 @@ export default function DoctorPatientDetail() {
   const intake = detail.data;
   const verified = intake.status === 'DOCTOR_VERIFIED';
   const high = intake.priority_flag === 'HIGH';
+  const patientName = String(
+    intake.patient?.display_name ?? intake.structured_fields?.display_name ?? 'Patient intake',
+  );
 
   const onSaveField = async (key: string, value: string) => {
     setLocal((s) => ({ ...s, [key]: value }));
@@ -70,11 +77,26 @@ export default function DoctorPatientDetail() {
     <Screen doctor>
       <AppHeader
         eyebrow="Patient summary"
-        title={String(intake.structured_fields?.display_name ?? 'Patient intake')}
+        title={patientName}
         subtitle={intake.ai_summary}
       />
 
+      <StatusPill
+        label={
+          intake.patient?.aadhaar_masked
+            ? `Aadhaar ${intake.patient.aadhaar_masked} · ${intake.prior_visit_count ?? 0} prior visit(s)`
+            : 'Current visit'
+        }
+        tone="wait"
+      />
+
       {high ? <StatusPill label="Urgent — review before saving" tone="urgent" /> : null}
+
+      <HistoricalInsightsPanel
+        overview={intake.historical_insights_overview}
+        insights={intake.historical_insights}
+        priorVisitCount={intake.prior_visit_count}
+      />
 
       {(intake.missing_information ?? []).map((m: string) => (
         <FlagBadge key={m} type="missing" label={`Missing: ${m}`} />
@@ -104,6 +126,8 @@ export default function DoctorPatientDetail() {
         source={verified ? 'DOCTOR_VERIFIED' : 'AI_GENERATED'}
         onChange={(v: string) => onSaveField('allergies', v)}
       />
+
+      <MedicalHistoryTimeline entries={intake.medical_history_timeline} />
 
       {!verified ? (
         <PrimaryButton

@@ -1,6 +1,6 @@
 /**
- * Tuned 900×1000 canvas geometry from the source-of-truth SVG.
- * Do not recalculate eye coordinates — they already match base-robot.png.
+ * 900×1000 canvas geometry for the transparent full-body robot
+ * (studio background removed; visor painted blank for the overlay).
  */
 
 export const ROBOT_CANVAS = {
@@ -8,7 +8,7 @@ export const ROBOT_CANVAS = {
   height: 1000,
 } as const;
 
-export const MAX_PUPIL_TRAVEL = 20;
+export const MAX_PUPIL_TRAVEL = 14;
 
 export type EyeCenter = {
   readonly cx: number;
@@ -28,57 +28,64 @@ export type PupilMarkup = EyeCenter & {
   readonly catchlightSecondary: { readonly cx: number; readonly cy: number; readonly r: number; readonly opacity: number };
 };
 
+/** Resting visor layout: pupils sit on the original upper visor eye marks. */
 export const LEFT_EYE_SOCKET: EyeSocket = {
-  cx: 423,
-  cy: 285,
-  rx: 75,
-  ry: 63,
+  cx: 374,
+  cy: 242,
+  rx: 42,
+  ry: 38,
   rotateDeg: -3,
 };
 
 export const RIGHT_EYE_SOCKET: EyeSocket = {
-  cx: 642,
-  cy: 280,
-  rx: 75,
-  ry: 63,
+  cx: 588,
+  cy: 242,
+  rx: 42,
+  ry: 38,
   rotateDeg: 3,
 };
 
 export const LEFT_EYE_CLIP: EyeSocket = {
-  cx: 423,
-  cy: 285,
-  rx: 72,
-  ry: 60,
+  cx: 374,
+  cy: 242,
+  rx: 40,
+  ry: 36,
   rotateDeg: -3,
 };
 
 export const RIGHT_EYE_CLIP: EyeSocket = {
-  cx: 642,
-  cy: 280,
-  rx: 72,
-  ry: 60,
+  cx: 588,
+  cy: 242,
+  rx: 40,
+  ry: 36,
   rotateDeg: 3,
 };
 
 export const LEFT_PUPIL: PupilMarkup = {
-  cx: 423,
-  cy: 285,
-  rx: 60,
-  ry: 52,
-  catchlightPrimary: { cx: 400, cy: 265, r: 14, opacity: 0.9 },
-  catchlightSecondary: { cx: 445, cy: 305, r: 7, opacity: 0.7 },
+  cx: 374,
+  cy: 242,
+  rx: 34,
+  ry: 31,
+  catchlightPrimary: { cx: 366, cy: 236, r: 7, opacity: 0.9 },
+  catchlightSecondary: { cx: 382, cy: 250, r: 3.5, opacity: 0.55 },
 };
 
 export const RIGHT_PUPIL: PupilMarkup = {
-  cx: 642,
-  cy: 280,
-  rx: 60,
-  ry: 52,
-  catchlightPrimary: { cx: 619, cy: 260, r: 14, opacity: 0.9 },
-  catchlightSecondary: { cx: 664, cy: 300, r: 7, opacity: 0.7 },
+  cx: 588,
+  cy: 242,
+  rx: 34,
+  ry: 31,
+  catchlightPrimary: { cx: 580, cy: 236, r: 7, opacity: 0.9 },
+  catchlightSecondary: { cx: 596, cy: 250, r: 3.5, opacity: 0.55 },
 };
 
-export const MOUTH_PATH = 'M 505 325 Q 532.5 345 560 325';
+/** Light cyan U-smile so it reads on the dark visor. */
+export const VISOR_SMILE = {
+  d: 'M 448 282 Q 481 318 514 282',
+  stroke: '#c8ffff',
+  strokeWidth: 8,
+  strokeLinecap: 'round' as const,
+};
 
 export type Point2D = {
   x: number;
@@ -92,31 +99,6 @@ export type LayoutBounds = {
   height: number;
 };
 
-export function layoutCenter(bounds: LayoutBounds): Point2D {
-  return {
-    x: bounds.x + bounds.width / 2,
-    y: bounds.y + bounds.height / 2,
-  };
-}
-
-/** Map a pointer inside layout bounds into the 900×1000 SVG viewBox. */
-export function pointerToSvg(
-  locationX: number,
-  locationY: number,
-  bounds: Pick<LayoutBounds, 'width' | 'height'>,
-): Point2D {
-  const width = bounds.width || 1;
-  const height = bounds.height || 1;
-  return {
-    x: (locationX / width) * ROBOT_CANVAS.width,
-    y: (locationY / height) * ROBOT_CANVAS.height,
-  };
-}
-
-/**
- * Clamp the vector from an eye center to the pointer so pupils stay
- * inside their clip-paths (max length = maxRadius, default 20).
- */
 export function clampVectorToRadius(dx: number, dy: number, maxRadius: number): Point2D {
   const length = Math.sqrt(dx * dx + dy * dy);
   if (length === 0) {
@@ -126,10 +108,6 @@ export function clampVectorToRadius(dx: number, dy: number, maxRadius: number): 
   return { x: dx * scale, y: dy * scale };
 }
 
-export function pupilOffsetFromPointer(
-  pointer: Point2D,
-  eye: EyeCenter,
-  maxRadius: number,
-): Point2D {
+export function pupilOffsetFromPointer(pointer: Point2D, eye: EyeCenter, maxRadius: number): Point2D {
   return clampVectorToRadius(pointer.x - eye.cx, pointer.y - eye.cy, maxRadius);
 }

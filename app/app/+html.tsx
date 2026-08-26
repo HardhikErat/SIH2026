@@ -1,4 +1,3 @@
-import { ScrollViewStyleReset } from 'expo-router/html';
 import type { ReactNode } from 'react';
 
 export default function Root({ children }: { children: ReactNode }) {
@@ -16,7 +15,6 @@ export default function Root({ children }: { children: ReactNode }) {
           href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=Inter:wght@400;600;700&family=Noto+Sans:wght@400;600&display=swap"
           rel="stylesheet"
         />
-        <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: globalCss }} />
       </head>
       <body>{children}</body>
@@ -28,11 +26,24 @@ const globalCss = `
 html {
   scroll-behavior: smooth;
 }
-html, body, #root {
+html, body {
+  margin: 0;
   min-height: 100%;
-  height: 100%;
+  height: auto !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
   background: #F7F9FC;
-  overflow-y: auto;
+}
+#root {
+  min-height: 100%;
+  height: auto !important;
+  overflow: visible !important;
+}
+#root > div {
+  height: auto !important;
+  min-height: 100vh;
+  overflow: visible !important;
+  flex: none !important;
 }
 body {
   margin: 0;

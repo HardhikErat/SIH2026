@@ -14,7 +14,7 @@ from core.schema import CollectedFields, Question
 
 
 def _with_basics(**kwargs) -> CollectedFields:
-    base = dict(display_name="Ravi", age=30, gender="male")
+    base = dict(display_name="Ravi", age=30, gender="male", aadhaar_last4="0123")
     base.update(kwargs)
     return CollectedFields(**base)
 
@@ -132,7 +132,12 @@ def test_memory_marks_complete():
         allergies="none",
         associated_symptoms_checked="true",
     )
-    memory = build_memory(fields, missing_fields=[], asked_questions=["Q_DURATION:duration"], conversation_complete=True)
+    memory = build_memory(
+        fields,
+        missing_fields=[],
+        asked_questions=["Q_DURATION:duration"],
+        conversation_complete=True,
+    )
     assert memory.conversation_complete is True
     assert "duration" in memory.collected_information
     assert "duration" in memory.answered_questions

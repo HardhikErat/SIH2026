@@ -105,15 +105,31 @@ export default function LandingScreen() {
   return (
     <div style={{ background: colors.white, minHeight: '100vh' }}>
       <style>{`
-        @media (max-width: 840px) {
-          .landing-hero-inner { grid-template-columns: 1fr !important; }
-          .landing-hero-robot { justify-self: center !important; max-width: 380px !important; order: -1; }
+        .landing-hero-inner {
+          display: grid !important;
+          grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr) !important;
+          align-items: center;
+          gap: clamp(12px, 3vw, 40px);
+        }
+        .landing-hero-robot {
+          width: min(100%, 46vw, calc(68vh * 0.9)) !important;
+          max-width: 520px !important;
+          justify-self: end !important;
+          order: 0 !important;
+        }
+        .landing-hero-title {
+          font-size: clamp(1.65rem, 3.4vw, 3.6rem) !important;
+        }
+        .landing-nav-links { display: none; }
+        @media (min-width: 960px) {
+          .landing-nav-links { display: flex; }
         }
       `}</style>
       <ScrollProgressBar />
       <SiteNav />
 
-      <ParallaxHero style={{ minHeight: '92vh', display: 'flex', alignItems: 'center' }}>
+      <ParallaxHero style={{ minHeight: '100vh' }}>
+        <div style={heroShell}>
         <div className="landing-hero-inner" style={heroInner}>
           <div style={heroCopy}>
           <ScrollReveal delay={0.05}>
@@ -124,7 +140,7 @@ export default function LandingScreen() {
           </ScrollReveal>
 
           <ScrollReveal delay={0.12}>
-            <h1 style={heroTitle}>
+            <h1 className="landing-hero-title" style={heroTitle}>
               Care begins before you see the doctor
             </h1>
           </ScrollReveal>
@@ -176,8 +192,21 @@ export default function LandingScreen() {
           </ScrollReveal>
           </div>
           <div className="landing-hero-robot" style={heroRobot}>
-            <RobotEyes idPrefix="landing" />
+            <RobotEyes idPrefix="landing" style={{ maxWidth: '100%' }} />
           </div>
+        </div>
+        <div style={heroTrust}>
+          {[
+            { icon: <IconCheckSimple size={16} color={colors.navy800} />, label: 'Trusted camp workflow' },
+            { icon: <IconLock size={16} color={colors.navy800} />, label: 'Data stays with your doctor' },
+            { icon: <IconCheckSimple size={16} color={colors.navy800} />, label: 'AI never auto-diagnoses' },
+          ].map((item) => (
+            <span key={item.label} style={heroTrustItem}>
+              <span style={trustIcon}>{item.icon}</span>
+              {item.label}
+            </span>
+          ))}
+        </div>
         </div>
       </ParallaxHero>
 
@@ -224,7 +253,7 @@ export default function LandingScreen() {
         />
       </div>
 
-      <section style={{ ...section, background: colors.navy900 }}>
+      <section id="portals" style={{ ...section, background: colors.navy900 }}>
         <div style={sectionInner}>
           <ScrollReveal>
             <p style={{ ...eyebrow, color: colors.gold400 }}>Choose your portal</p>
@@ -298,25 +327,13 @@ function SiteNav() {
     >
       <div style={navInner}>
         <div style={navBrand}>
-          <BrandMark size={32} />
+          <BrandMark size={28} />
           <span style={navName}>Clinical Intake</span>
         </div>
-        <nav style={navLinks}>
-          <a href="#features" style={navLink}>
-            Features
-          </a>
-          <a href="#how" style={navLink}>
-            How it works
-          </a>
-          <motion.button
-            type="button"
-            style={navCta}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={() => router.push('/start')}
-          >
-            Book intake
-          </motion.button>
+        <nav className="landing-nav-links" style={navLinks}>
+          <a href="#features" style={navLink}>Features</a>
+          <a href="#how" style={navLink}>How it works</a>
+          <a href="#portals" style={navLink}>Portals</a>
         </nav>
       </div>
     </motion.header>
@@ -324,15 +341,24 @@ function SiteNav() {
 }
 
 /* ── Styles ── */
+const heroShell: React.CSSProperties = {
+  minHeight: '100vh',
+  display: 'flex',
+  flexDirection: 'column',
+  justifyContent: 'space-between',
+};
+
 const heroInner: React.CSSProperties = {
   maxWidth: 1180,
   margin: '0 auto',
-  padding: '128px 24px 72px',
+  padding: '108px 28px 20px',
   width: '100%',
+  flex: 1,
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1.15fr) minmax(280px, 0.9fr)',
-  gap: 32,
+  gridTemplateColumns: 'minmax(0, 1.12fr) minmax(0, 0.88fr)',
+  gap: 24,
   alignItems: 'center',
+  boxSizing: 'border-box',
 };
 
 const heroCopy: React.CSSProperties = {
@@ -343,6 +369,27 @@ const heroRobot: React.CSSProperties = {
   width: '100%',
   maxWidth: 520,
   justifySelf: 'end',
+  alignSelf: 'center',
+};
+
+const heroTrust: React.CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  justifyContent: 'space-around',
+  alignItems: 'center',
+  gap: '10px 28px',
+  marginTop: 8,
+  padding: '14px 32px',
+  background: 'rgba(255,255,255,0.94)',
+};
+
+const heroTrustItem: React.CSSProperties = {
+  fontFamily: fonts.ui,
+  fontSize: 13,
+  color: colors.navy800,
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
 };
 
 const heroBadge: React.CSSProperties = {
@@ -370,12 +417,12 @@ const heroBadgeDot: React.CSSProperties = {
 
 const heroTitle: React.CSSProperties = {
   fontFamily: fonts.uiSemiBold,
-  fontSize: 'clamp(2.5rem, 6vw, 3.75rem)',
+  fontSize: 'clamp(1.65rem, 3.4vw, 3.6rem)',
   lineHeight: 1.08,
   color: colors.white,
-  margin: '0 0 24px',
+  margin: '0 0 20px',
   letterSpacing: '-0.03em',
-  maxWidth: 720,
+  maxWidth: 640,
 };
 
 const heroTitleAccent: React.CSSProperties = {
@@ -386,11 +433,11 @@ const heroTitleAccent: React.CSSProperties = {
 
 const heroSubtitle: React.CSSProperties = {
   fontFamily: fonts.ui,
-  fontSize: 'clamp(1rem, 2.2vw, 1.2rem)',
-  lineHeight: 1.7,
+  fontSize: 'clamp(0.92rem, 1.6vw, 1.15rem)',
+  lineHeight: 1.65,
   color: 'rgba(255,255,255,0.82)',
-  maxWidth: 560,
-  margin: '0 0 36px',
+  maxWidth: 540,
+  margin: '0 0 28px',
 };
 
 const heroCtas: React.CSSProperties = {
@@ -426,10 +473,11 @@ const ctaSecondary: React.CSSProperties = {
 
 const heroStats: React.CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-  gap: 24,
-  paddingTop: 32,
-  borderTop: '1px solid rgba(255,255,255,0.15)',
+  gridTemplateColumns: '1fr 1fr',
+  gap: 16,
+  maxWidth: 420,
+  paddingTop: 28,
+  borderTop: '1px solid rgba(255,255,255,0.18)',
 };
 
 const heroStat: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4 };
@@ -629,25 +677,26 @@ const ctaSubtitle: React.CSSProperties = {
 
 const nav: React.CSSProperties = {
   position: 'fixed',
-  top: 3,
+  top: 16,
   left: 0,
   right: 0,
   zIndex: 1000,
-  padding: '12px 24px',
+  display: 'flex',
+  justifyContent: 'center',
+  padding: '0 24px',
 };
 
 const navInner: React.CSSProperties = {
-  maxWidth: 1120,
   margin: '0 auto',
-  display: 'flex',
+  display: 'inline-flex',
   alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '12px 20px',
-  borderRadius: radius.xl,
-  background: 'rgba(255,255,255,0.85)',
-  backdropFilter: 'blur(12px)',
-  border: `1px solid ${colors.line}`,
-  boxShadow: '0 4px 24px rgba(6,32,53,0.06)',
+  justifyContent: 'center',
+  gap: 28,
+  padding: '10px 22px',
+  borderRadius: 999,
+  background: colors.white,
+  boxShadow: '0 8px 28px rgba(6,32,53,0.16)',
+  pointerEvents: 'auto',
 };
 
 const navBrand: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10 };

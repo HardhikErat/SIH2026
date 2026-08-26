@@ -31,6 +31,8 @@ npm start
 
 Demo doctor login: `doctor@camp.local` / `camp-demo`
 
+Patient registration requires a 12-digit Aadhaar (hashed at rest). Returning patients get prior-visit context, consultation summaries on the done screen, and a **Next Patient** reset for kiosk flow. Doctor detail views show historical insights when prior intakes exist.
+
 ### Intake robot (hero visor)
 
 Reusable Expo component: `app/shared/components/RobotEyes.tsx`.

@@ -54,6 +54,39 @@ class MemoryStore:
         self.patients[pid] = row
         return row
 
+    def get_patient(self, patient_id: str) -> dict | None:
+        return self.patients.get(patient_id)
+
+    def find_patient_by_aadhaar_hash(self, aadhaar_hash: str) -> dict | None:
+        for patient in self.patients.values():
+            if patient.get("aadhaar_hash") == aadhaar_hash:
+                return patient
+        return None
+
+    def list_intakes_by_patient(
+        self, patient_id: str, *, exclude_intake_id: str | None = None
+    ) -> list[dict]:
+        items = [
+            row
+            for row in self.intakes.values()
+            if row.get("patient_id") == patient_id
+            and (exclude_intake_id is None or row.get("id") != exclude_intake_id)
+        ]
+        items.sort(key=lambda r: r.get("created_at") or "", reverse=True)
+        return items
+
+    def list_intakes_by_aadhaar_hash(
+        self, aadhaar_hash: str, *, exclude_intake_id: str | None = None
+    ) -> list[dict]:
+        items = [
+            row
+            for row in self.intakes.values()
+            if row.get("aadhaar_hash") == aadhaar_hash
+            and (exclude_intake_id is None or row.get("id") != exclude_intake_id)
+        ]
+        items.sort(key=lambda r: r.get("created_at") or "", reverse=True)
+        return items
+
     def update_patient(self, patient_id: str, **kwargs: Any) -> dict:
         self.patients[patient_id].update(kwargs)
         return self.patients[patient_id]

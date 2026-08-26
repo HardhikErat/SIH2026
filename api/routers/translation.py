@@ -3,7 +3,6 @@ from __future__ import annotations
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from core.errors import ApiException
 from core.speech_gateway import speech_gateway
 
 router = APIRouter()

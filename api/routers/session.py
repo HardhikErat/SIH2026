@@ -6,6 +6,8 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from auth.supabase_auth import create_patient_token
+from core.aadhaar import aadhaar_hash, aadhaar_last4, mask_aadhaar, validate_aadhaar
+from core.errors import ApiException
 from core.languages import LANGUAGES, get_language
 from core.llm_gateway import gateway
 from core.schema import CollectedFields
@@ -22,6 +24,7 @@ class StartSessionBody(BaseModel):
     display_name: str | None = None
     age: int | None = None
     gender: str | None = None
+    aadhaar_number: str
     audio_consent: bool = False
 
 
@@ -52,21 +55,50 @@ def start_session(body: StartSessionBody) -> dict:
     store = get_store()
     lang = get_language(body.language)
     if not lang:
-        from core.errors import ApiException
-
         raise ApiException(400, "UNSUPPORTED_LANGUAGE", "Language code is not in the scheduled set.")
-    patient = store.create_patient(
-        display_name=body.display_name,
-        preferred_language=body.language,
-        dialect_hint=body.dialect_hint,
-        camp_id=body.camp_id,
-        # supabase client might not have age/gender, but we can store it in metadata if needed. Assuming it accepts them or ignores them. We'll at least put it in fields.
-    )
+
+    try:
+        aadhaar = validate_aadhaar(body.aadhaar_number)
+    except ValueError as exc:
+        raise ApiException(400, "INVALID_AADHAAR", str(exc)) from exc
+
+    hashed = aadhaar_hash(aadhaar)
+    last4 = aadhaar_last4(aadhaar)
+    existing = store.find_patient_by_aadhaar_hash(hashed)
+    returning = existing is not None
+
+    if existing:
+        patient = store.update_patient(
+            existing["id"],
+            display_name=body.display_name or existing.get("display_name"),
+            age=body.age if body.age is not None else existing.get("age"),
+            gender=body.gender or existing.get("gender"),
+            preferred_language=body.language,
+            dialect_hint=body.dialect_hint,
+            camp_id=body.camp_id or existing.get("camp_id"),
+            aadhaar_hash=hashed,
+            aadhaar_last4=last4,
+        )
+        prior_count = len(store.list_intakes_by_aadhaar_hash(hashed))
+    else:
+        patient = store.create_patient(
+            display_name=body.display_name,
+            age=body.age,
+            gender=body.gender,
+            preferred_language=body.language,
+            dialect_hint=body.dialect_hint,
+            camp_id=body.camp_id,
+            aadhaar_hash=hashed,
+            aadhaar_last4=last4,
+        )
+        prior_count = 0
+
     session = store.create_session(patient["id"], camp_id=body.camp_id)
     fields = CollectedFields(
-        display_name=body.display_name,
-        age=body.age,
-        gender=body.gender or "unknown",
+        display_name=body.display_name or patient.get("display_name"),
+        age=body.age if body.age is not None else patient.get("age"),
+        gender=body.gender or patient.get("gender") or "unknown",
+        aadhaar_last4=last4,
         preferred_language=body.language,
         dialect_hint=body.dialect_hint,
     )
@@ -74,14 +106,44 @@ def start_session(body: StartSessionBody) -> dict:
     session["language"] = body.language
     session["dialect_hint"] = body.dialect_hint
     session["audio_consent"] = body.audio_consent
+    session["aadhaar_hash"] = hashed
     session["started_at"] = datetime.now(UTC).isoformat()
     store.save_session(session)
     token = create_patient_token(session["id"], patient["id"])
-    greeting = {
-        "en": "I will listen and write down your problem for the doctor. I do not diagnose or give medicine.",
-        "hi": "मैं आपकी बात सुनकर डॉक्टर के लिए लिखूँगा। मैं बीमारी नहीं बताऊँगा और दवाई नहीं दूँगा।",
-        "mr": "मी तुमची तक्रार डॉक्टरसाठी लिहीन. मी निदान करणार नाही किंवा औषध सांगणार नाही.",
-    }
+
+    name = fields.display_name or "there"
+    if returning and prior_count:
+        greeting = {
+            "en": (
+                f"Welcome back, {name}. I found {prior_count} earlier visit(s) linked to "
+                f"Aadhaar {mask_aadhaar(last4)}. Tell me what is bothering you today — "
+                "I do not diagnose or give medicine."
+            ),
+            "hi": (
+                f"वापसी पर स्वागत है, {name}. आधार {mask_aadhaar(last4)} से जुड़ी "
+                f"{prior_count} पुरानी विज़िट मिली। आज क्या तकलीफ है? मैं बीमारी नहीं बताऊँगा।"
+            ),
+            "mr": (
+                f"परत स्वागत आहे, {name}. आधार {mask_aadhaar(last4)} शी संबंधित "
+                f"{prior_count} जुन्या भेटी सापडल्या. आज काय त्रास आहे? मी निदान करणार नाही."
+            ),
+        }
+    else:
+        greeting = {
+            "en": (
+                f"Hello {name}. Your Aadhaar {mask_aadhaar(last4)} is registered as your "
+                "patient ID. I will listen and write down your problem for the doctor. "
+                "I do not diagnose or give medicine."
+            ),
+            "hi": (
+                f"नमस्ते {name}. आपका आधार {mask_aadhaar(last4)} रोगी पहचान के रूप में दर्ज है। "
+                "मैं डॉक्टर के लिए लिखूँगा — बीमारी या दवाई नहीं बताऊँगा।"
+            ),
+            "mr": (
+                f"नमस्कार {name}. तुमचा आधार {mask_aadhaar(last4)} रुग्ण ओळख म्हणून नोंदला आहे. "
+                "मी डॉक्टरसाठी लिहीन — निदान किंवा औषध सांगणार नाही."
+            ),
+        }
     ai_message = greeting.get(body.language.split("-")[0], greeting["en"])
     return {
         "session_id": session["id"],
@@ -90,6 +152,9 @@ def start_session(body: StartSessionBody) -> dict:
         "language": lang.model_dump(),
         "ai_message": ai_message,
         "audio_consent": body.audio_consent,
+        "returning_patient": returning,
+        "prior_visit_count": prior_count,
+        "aadhaar_masked": mask_aadhaar(last4),
     }
 
 
@@ -98,13 +163,9 @@ def patch_language(session_id: str, body: LanguagePatch) -> dict:
     store = get_store()
     session = store.get_session(session_id)
     if not session:
-        from core.errors import ApiException
-
         raise ApiException(404, "SESSION_NOT_FOUND", "Session does not exist.")
     lang = get_language(body.language)
     if not lang:
-        from core.errors import ApiException
-
         raise ApiException(400, "UNSUPPORTED_LANGUAGE", "Language code is not in the scheduled set.")
     session["language"] = body.language
     session["dialect_hint"] = body.dialect_hint

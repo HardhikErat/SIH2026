@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     indic_whisper_url: str = ""
     asr_confidence_threshold: float = 0.6
     max_questions: int = 10
+    aadhaar_hash_salt: str = "sih2026-aadhaar-salt"
 
     supabase_url: str = ""
     supabase_service_role_key: str = ""
