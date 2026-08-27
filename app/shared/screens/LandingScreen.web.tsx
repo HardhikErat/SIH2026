@@ -91,14 +91,6 @@ const PORTALS = [
     href: '/(doctor)/login',
     accent: colors.navy700,
   },
-  {
-    role: 'Admin',
-    title: 'Camp setup',
-    body: 'Create today\'s outreach camp and group patient intakes for your team.',
-    cta: 'Open admin',
-    href: '/(admin)/camp-setup',
-    accent: colors.gold500,
-  },
 ];
 
 export default function LandingScreen() {
@@ -257,7 +249,7 @@ export default function LandingScreen() {
         <div style={sectionInner}>
           <ScrollReveal>
             <p style={{ ...eyebrow, color: colors.gold400 }}>Choose your portal</p>
-            <h2 style={{ ...sectionTitle, color: colors.white }}>One platform, three roles</h2>
+            <h2 style={{ ...sectionTitle, color: colors.white }}>One platform, two roles</h2>
           </ScrollReveal>
 
           <div style={portalGrid}>

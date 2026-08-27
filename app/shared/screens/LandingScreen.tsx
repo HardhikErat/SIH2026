@@ -70,13 +70,6 @@ export default function LandingScreen() {
           accent="doctor"
           onPress={() => router.push('/(doctor)/login')}
         />
-        <RoleCard
-          title="Camp admin"
-          description="Set up today's outreach camp and monitor patient flow."
-          icon={<IconHospital size={26} color={colors.gold500} />}
-          accent="admin"
-          onPress={() => router.push('/(admin)/camp-setup')}
-        />
       </Stagger>
 
       <Text style={styles.trust}>
