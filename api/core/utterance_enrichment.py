@@ -94,9 +94,16 @@ _ASR_FIXES: list[tuple[str, str]] = [
     ("देन", "दिन"),
     ("दिनो", "दिन"),
     ("den se", "din se"),
+    # Hinglish number spellings often from voice
+    ("chaar", "चार"),
+    ("paanch", "पाँच"),
+    ("panch", "पाँच"),
+    ("baarah", "बारह"),
+    ("barah", "बारह"),
 ]
 
 _HINDI_NUM: dict[str, int] = {
+    # Devanagari
     "एक": 1,
     "दो": 2,
     "तीन": 3,
@@ -109,21 +116,68 @@ _HINDI_NUM: dict[str, int] = {
     "आठ": 8,
     "नौ": 9,
     "दस": 10,
+    "ग्यारह": 11,
     "बारह": 12,
     "पंद्रह": 15,
     "बीस": 20,
+    "तीस": 30,
+    # Marathi (common spoken forms)
+    "एकच": 1,
+    "दोन": 2,
+    "तीनच": 3,
+    "चारच": 4,
+    "पाच": 5,
+    "सहा": 6,
+    "सातच": 7,
+    "आठच": 8,
+    "नऊ": 9,
+    "दहा": 10,
+    # Hinglish / romanized (voice & keyboard) — include long spellings first via sort
     "ek": 1,
+    "aik": 1,
+    "one": 1,
     "do": 2,
+    "don": 2,  # Marathi दोन romanized
+    "dho": 2,
+    "two": 2,
     "teen": 3,
+    "tin": 3,
+    "three": 3,
+    "chaar": 4,
     "char": 4,
+    "vaar": 4,
+    "four": 4,
     "paanch": 5,
     "panch": 5,
+    "paach": 5,
+    "five": 5,
     "chhe": 6,
+    "chhah": 6,
+    "che": 6,
+    "six": 6,
     "saat": 7,
+    "sath": 7,
+    "seven": 7,
     "aath": 8,
+    "aat": 8,
+    "ath": 8,
+    "eight": 8,
     "nau": 9,
+    "nao": 9,
+    "nine": 9,
     "das": 10,
+    "dus": 10,
+    "dahaa": 10,
+    "ten": 10,
+    "baarah": 12,
+    "barah": 12,
+    "pandrah": 15,
+    "bees": 20,
+    "tees": 30,
 }
+
+# Devanagari digits → ASCII
+_DEVANAGARI_DIGITS = str.maketrans("०१२३४५६७८९", "0123456789")
 
 # (phrase, concept_id, complaint_category, optional clinical flag)
 _SYMPTOM_PHRASES: list[tuple[str, str, str, str | None]] = [
@@ -375,46 +429,64 @@ def _match_symptom(lower: str, original: str) -> tuple[str, str, str | None] | N
 
 
 def _parse_duration_days(text: str, *, pending_field: str | None = None) -> int | None:
-    lower = text.casefold().strip()
+    raw = (text or "").strip()
+    # Normalize Devanagari digits ४ → 4
+    raw = raw.translate(_DEVANAGARI_DIGITS)
+    lower = raw.casefold().strip()
     compact = re.sub(r"\s+", " ", lower)
+    # Longest number-words first so "chaar" wins over "char", "paanch" over "panch"
+    num_words = sorted(_HINDI_NUM.items(), key=lambda kv: len(kv[0]), reverse=True)
 
     if any(w in compact for w in ("yesterday", "kal se", "कल से", "since yesterday")):
         return 1
-    if any(w in compact for w in ("a week", "1 week", "one week", "ek hafte", "एक हफ्ते", "hafte se")):
+    if any(
+        w in compact
+        for w in ("a week", "1 week", "one week", "ek hafte", "ek hapta", "एक हफ्ते", "hafte se", "एक आठवडा")
+    ):
         return 7
-    m = re.search(r"(\d+)\s*(?:week|weeks|hafte|हफ्ते)", compact)
+    m = re.search(r"(\d+)\s*(?:week|weeks|hafte|हफ्ते|आठवड)", compact)
     if m:
         return int(m.group(1)) * 7
 
     # Digit + day unit
-    m = re.search(r"(\d+)\s*(?:day|days|din|दिन)", compact)
+    m = re.search(r"(\d+)\s*(?:day|days|din|दिन|दिवस)", compact)
     if m:
         return int(m.group(1))
 
-    # Hindi / Hinglish number words + day unit
-    for word, n in _HINDI_NUM.items():
-        if re.search(rf"{re.escape(word)}\s*(?:din|day|days|दिन)", compact):
+    # Number word + day unit (Hinglish / Hindi / Marathi)
+    for word, n in num_words:
+        if re.search(
+            rf"(?<![\w\u0900-\u097F]){re.escape(word)}(?![\w\u0900-\u097F])\s*(?:din|day|days|दिन|दिवस)",
+            compact,
+            flags=re.I,
+        ):
             return n
-        if re.search(rf"{re.escape(word)}\s*(?:से|se)\b", text):
+        if re.search(
+            rf"(?<![\w\u0900-\u097F]){re.escape(word)}(?![\w\u0900-\u097F])\s*(?:से|se)\b",
+            compact,
+            flags=re.I,
+        ):
             return n
 
     # When duration was the pending question, accept bare numbers / number words
     if pending_field == "duration":
         if re.fullmatch(r"\d{1,3}", compact):
             return int(compact)
-        for word, n in _HINDI_NUM.items():
-            if re.fullmatch(re.escape(word), compact, flags=re.I) or re.fullmatch(
-                re.escape(word), text.strip(), flags=re.I
-            ):
+        for word, n in num_words:
+            if re.fullmatch(re.escape(word), compact, flags=re.I):
                 return n
-        # "चार दिन", already handled; also "लगभग चार"
-        for word, n in _HINDI_NUM.items():
-            if word in compact or word in text:
+        # "लगभग चार" / "around chaar"
+        for word, n in num_words:
+            if re.search(
+                rf"(?<![\w\u0900-\u097F]){re.escape(word)}(?![\w\u0900-\u097F])",
+                compact,
+                flags=re.I,
+            ):
                 return n
 
     # "4 din se" without requiring pending
-    m = re.search(r"(\d+)\s*(?:din|day|days|दिन)?\s*(?:se|से)?", compact)
-    if m and re.search(r"(din|day|दिन|se |से)", compact):
+    m = re.search(r"(\d+)\s*(?:din|day|days|दिन|दिवस)?\s*(?:se|से)?", compact)
+    if m and re.search(r"(din|day|दिन|दिवस|se |से)", compact):
         return int(m.group(1))
 
     return None

@@ -131,6 +131,16 @@ def test_bare_hindi_number_sets_duration_when_pending():
     assert enrich_utterance_delta("2", {}, pending_field="duration")["duration_days"] == 2
 
 
+def test_hinglish_chaar_and_marathi_don_set_duration():
+    assert enrich_utterance_delta("chaar", {}, pending_field="duration")["duration_days"] == 4
+    assert enrich_utterance_delta("chaar din", {}, pending_field="duration")["duration_days"] == 4
+    assert enrich_utterance_delta("Chaar", {}, pending_field="duration")["duration_days"] == 4
+    assert enrich_utterance_delta("don", {}, pending_field="duration")["duration_days"] == 2
+    assert enrich_utterance_delta("paanch", {}, pending_field="duration")["duration_days"] == 5
+    assert enrich_utterance_delta("४", {}, pending_field="duration")["duration_days"] == 4
+    assert enrich_utterance_delta("पाच", {}, pending_field="duration")["duration_days"] == 5
+
+
 def test_back_pain_sets_chief_complaint():
     delta = enrich_utterance_delta("I have back pain for 2 days", {}, pending_field="chief_complaint")
     assert delta["chief_complaint"] == "SYM_BACK_PAIN"

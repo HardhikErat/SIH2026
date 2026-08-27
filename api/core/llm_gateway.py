@@ -43,6 +43,10 @@ ASR / SPELLING TOLERANCE (critical)
 Voice-to-text is noisy. Treat these as FEVER (SYM_FEVER) when they are the main token:
 बोकार, बुकार, बूकर, बू कर, बु कर, बुखर, भुखार, bokar, bukar, bukaar, bukhaar, bukhar, बुखार, fever, ताप.
 Also fix: बिबार/बिमर→बीमार, देन→दिन, तकलिफ→तकलीफ.
+Hinglish NUMBER WORDS (very common from voice): chaar/char=4, do/don=2, teen=3, paanch/panch=5,
+ek=1, chhe=6, saat=7, aath=8, nau=9, das=10, baarah=12. Devanagari digits ४=4, २=2.
+If pending_field=duration and the patient says ONLY a number word (chaar / चार / दो / don),
+you MUST set duration_days to that integer.
 If the utterance is clearly a mangled symptom word, still extract the intended concept.
 
 ========================
@@ -81,6 +85,12 @@ Few-shot examples:
    {{"duration":"2 days","duration_days":2}}
 5) pending_field=duration, utterance="2"
    {{"duration":"2 days","duration_days":2}}
+5b) pending_field=duration, utterance="chaar" OR "chaar din" OR "char din se"
+   {{"duration":"4 days","duration_days":4}}
+5c) pending_field=duration, utterance="don" OR "doha" (Marathi दोन)
+   {{"duration":"2 days","duration_days":2}}
+5d) pending_field=duration, utterance="paanch" / "पाच" / "५"
+   {{"duration":"5 days","duration_days":5}}
 6) utterance="back pain for 2 days"
    {{"chief_complaint":"SYM_BACK_PAIN","complaint_category":"default","duration":"2 days","duration_days":2,
      "symptoms":[{{"concept_id":"SYM_BACK_PAIN","raw_term":"back pain"}}]}}
