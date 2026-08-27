@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
-import { BrandMark, IconDoctor, IconHospital, IconStethoscope } from '../components/icons';
+import { BrandMark, IconDoctor, IconStethoscope } from '../components/icons';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { RobotEyes } from '../components/RobotEyes';
 import { RoleCard } from '../components/RoleCard';
