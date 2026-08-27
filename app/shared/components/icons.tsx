@@ -19,7 +19,7 @@ export function BrandMark({ size = 32 }: { size?: number }) {
     <Image
       source={airaLogo}
       accessibilityLabel="Aira"
-      style={[styles.brandMark, { width: size, height: size, borderRadius: Math.round(size * 0.22) }]}
+      style={[styles.brandMark, { width: size, height: size, borderRadius: Math.round(size * 0.18) }]}
     />
   );
 }
