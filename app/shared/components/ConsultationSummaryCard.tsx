@@ -8,8 +8,54 @@ type Props = {
   language: string;
 };
 
+function localizeGender(lang: string, value: unknown): string {
+  if (value == null || value === '' || value === 'N/A') return 'N/A';
+  const key = String(value).trim().toLowerCase();
+  if (key === 'male') return t(lang, 'male');
+  if (key === 'female') return t(lang, 'female');
+  if (key === 'other') return t(lang, 'other');
+  return String(value);
+}
+
+function localizeSeverity(lang: string, value: unknown): string {
+  if (value == null || value === '') return '';
+  const key = String(value).trim().toLowerCase();
+  if (key === 'mild') return t(lang, 'severityMild') || 'mild';
+  if (key === 'moderate') return t(lang, 'severityModerate') || 'moderate';
+  if (key === 'severe') return t(lang, 'severitySevere') || 'severe';
+  return String(value);
+}
+
+/** Prefer API-localized duration; fall back to client rewrite of English "N days". */
+function displayDuration(lang: string, value: unknown): string {
+  if (value == null || value === '') return '';
+  const text = String(value).trim();
+  if (/[\u0900-\u097F]/.test(text)) return text;
+  const m = text.match(/^(\d+)\s*(day|days)$/i);
+  if (!m) return text;
+  const n = Number(m[1]);
+  if (lang.startsWith('hi')) return `${n} दिन`;
+  if (lang.startsWith('mr')) return `${n} दिवस`;
+  return `${n} ${n === 1 ? 'day' : 'days'}`;
+}
+
 export function ConsultationSummaryCard({ summary, language }: Props) {
   const lang = language || 'en';
+  const nextSteps: string[] =
+    summary.recommended_next_steps || summary.suggested_next_steps || [];
+
+  const hasStructuredPatient =
+    summary.patient_name || summary.patient_age != null || summary.patient_gender;
+  const patientLine = hasStructuredPatient
+    ? [
+        summary.patient_name || 'N/A',
+        summary.patient_age != null && summary.patient_age !== ''
+          ? `${summary.patient_age} ${t(lang, 'yrs')}`
+          : 'N/A',
+        localizeGender(lang, summary.patient_gender),
+      ].join(', ')
+    : String(summary.patient_details || 'N/A');
+
   return (
     <Card style={styles.card}>
       <View style={styles.disclaimerBox}>
@@ -22,10 +68,7 @@ export function ConsultationSummaryCard({ summary, language }: Props) {
 
       <View style={styles.section}>
         <Text style={styles.label}>{t(lang, 'patientDetails')}</Text>
-        <Text style={styles.text}>
-          {summary.patient_name || 'N/A'}, {summary.patient_age ? `${summary.patient_age} yrs` : 'N/A'},{' '}
-          {summary.patient_gender || 'N/A'}
-        </Text>
+        <Text style={styles.text}>{patientLine}</Text>
       </View>
 
       <View style={styles.section}>
@@ -47,14 +90,14 @@ export function ConsultationSummaryCard({ summary, language }: Props) {
       {summary.duration && (
         <View style={styles.section}>
           <Text style={styles.label}>{t(lang, 'duration')}</Text>
-          <Text style={styles.text}>{summary.duration}</Text>
+          <Text style={styles.text}>{displayDuration(lang, summary.duration)}</Text>
         </View>
       )}
 
       {summary.severity && (
         <View style={styles.section}>
           <Text style={styles.label}>{t(lang, 'severity') || 'Severity'}</Text>
-          <Text style={styles.text}>{String(summary.severity)}</Text>
+          <Text style={styles.text}>{localizeSeverity(lang, summary.severity)}</Text>
         </View>
       )}
 
@@ -100,10 +143,10 @@ export function ConsultationSummaryCard({ summary, language }: Props) {
         </View>
       )}
 
-      {summary.recommended_next_steps && summary.recommended_next_steps.length > 0 && (
+      {nextSteps.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.label}>{t(lang, 'nextSteps')}</Text>
-          {summary.recommended_next_steps.map((r: string, i: number) => (
+          {nextSteps.map((r: string, i: number) => (
             <Text key={i} style={styles.bullet}>
               • {r}
             </Text>

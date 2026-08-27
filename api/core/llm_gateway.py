@@ -474,13 +474,22 @@ class LLMGateway:
         from core.summary_builder import build_summary_from_fields, merge_summary_with_fields
 
         grounded = build_summary_from_fields(fields, language)
+        lang = (language or "en").split("-")[0].lower()
+        lang_rule = (
+            "Write EVERY patient-visible string (main_complaint, symptoms, duration, severity, "
+            "observations, recommended_next_steps, allergies labels, ai_disclaimer, patient_gender) "
+            f"entirely in language code '{lang}'. Do not mix in English except medicine brand names."
+            if lang not in ("en", "english")
+            else "Write all patient-visible strings in clear English."
+        )
         system = (
             "You are a clinical assistant. Generate a structured consultation "
             f"summary for the patient in language code {language}. "
             "Output ONLY valid JSON matching the provided schema. "
             "Include patient details, main complaint, symptoms, duration, medications, allergies, and observations. "
             "Use ONLY facts from collected_fields — do not invent symptoms or medicines. "
-            "Recommend sensible next steps (e.g., 'Rest', 'Drink fluids', 'Consult a doctor for evaluation'). "
+            f"{lang_rule} "
+            "Recommend sensible next steps appropriate for that language. "
             "Do NOT diagnose or prescribe medications."
         )
         user = json.dumps(
