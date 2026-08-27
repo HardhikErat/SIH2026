@@ -30,7 +30,7 @@ export default function AdminLayout() {
         options={{
           title: 'Camp setup',
           headerLeft: () => (
-            <Pressable onPress={() => router.push('/')} style={backStyles.back}>
+            <Pressable onPress={() => router.replace('/')} style={backStyles.back}>
               <Text style={backStyles.backText}>Home</Text>
             </Pressable>
           ),

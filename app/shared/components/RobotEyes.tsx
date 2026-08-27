@@ -106,6 +106,7 @@ function pupilLayerStyle(
 function PupilGraphic({ pupil, glowId }: { pupil: PupilMarkup; glowId: string }) {
   return (
     <>
+      <Ellipse cx={pupil.cx} cy={pupil.cy} rx={pupil.rx} ry={pupil.ry} fill="#00b4ff" />
       <Ellipse cx={pupil.cx} cy={pupil.cy} rx={pupil.rx} ry={pupil.ry} fill={`url(#${glowId})`} />
       <Circle
         cx={pupil.catchlightPrimary.cx}
@@ -196,7 +197,8 @@ function RobotEyesInner(
   ref: Ref<RobotEyesHandle>,
 ) {
   const reactId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
-  const ns = idPrefix ?? reactId;
+  // Uniquify SVG ids across remounts after patient/doctor Home navigation.
+  const ns = idPrefix ? `${idPrefix}-${reactId}` : reactId;
 
   const ids = useMemo(
     () => ({

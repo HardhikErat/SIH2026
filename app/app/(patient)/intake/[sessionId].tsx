@@ -44,10 +44,16 @@ export default function IntakeScreen() {
   const [ready, setReady] = useState(false);
   /** After "Continue Talking", stay in chat — don't auto-jump back to summary. */
   const [followUpMode, setFollowUpMode] = useState(false);
+  const [voiceInFlight, setVoiceInFlight] = useState(false);
   const turnCounter = useRef(1);
+  const voiceOpRef = useRef(0);
   const listRef = useRef<FlatList>(null);
-  const { isRecording, start: startVoice, stop: stopVoice } = useVoiceInput({ language, token });
+  const { isRecording, start: startVoice, stop: stopVoice, cancel: cancelVoice } = useVoiceInput({
+    language,
+    token,
+  });
   const transition = useMotionTransition();
+  const showVoiceCancel = isRecording || voiceInFlight;
 
   const openSummary = useCallback(() => {
     setFollowUpMode(false);
@@ -67,7 +73,7 @@ export default function IntakeScreen() {
   }, [language, appendAiMessage]);
 
   const sendTurn = useCallback(
-    async (content: string) => {
+    async (content: string, opId?: number) => {
       if (!token || !sessionId || !content.trim()) return;
       setBusy(true);
       setError(null);
@@ -79,6 +85,9 @@ export default function IntakeScreen() {
           content: content.trim(),
           language,
         });
+        if (opId !== undefined && opId !== voiceOpRef.current) {
+          return;
+        }
         addTurns(
           content.trim(),
           res.ai_message,
@@ -95,10 +104,15 @@ export default function IntakeScreen() {
           setReady(true);
         }
       } catch (e) {
+        if (opId !== undefined && opId !== voiceOpRef.current) {
+          return;
+        }
         const msg = e instanceof ApiError ? e.message : t(language, 'retrying');
         setError(msg);
       } finally {
-        setBusy(false);
+        if (opId === undefined || opId === voiceOpRef.current) {
+          setBusy(false);
+        }
       }
     },
     [token, sessionId, language, addTurns, followUpMode],
@@ -107,6 +121,7 @@ export default function IntakeScreen() {
   const onMicStart = async () => {
     if (isRecording || busy) return;
     setError(null);
+    voiceOpRef.current += 1;
     try {
       await startVoice();
     } catch (e) {
@@ -122,16 +137,24 @@ export default function IntakeScreen() {
 
   const onMicStop = async () => {
     if (!isRecording || busy) return;
+    const opId = voiceOpRef.current;
     setBusy(true);
+    setVoiceInFlight(true);
     setError(null);
     try {
       const transcript = await stopVoice();
+      if (opId !== voiceOpRef.current) {
+        return;
+      }
       if (!transcript.trim()) {
         setError('No speech was heard. Hold Speak for a moment, then talk, then tap again to send.');
         return;
       }
-      await sendTurn(transcript);
+      await sendTurn(transcript, opId);
     } catch (e) {
+      if (opId !== voiceOpRef.current) {
+        return;
+      }
       const msg =
         e instanceof ApiError
           ? e.message
@@ -140,8 +163,23 @@ export default function IntakeScreen() {
             : t(language, 'retrying');
       setError(msg);
     } finally {
-      setBusy(false);
+      if (opId === voiceOpRef.current) {
+        setBusy(false);
+        setVoiceInFlight(false);
+      }
     }
+  };
+
+  const onMicCancel = async () => {
+    voiceOpRef.current += 1;
+    setError(null);
+    try {
+      await cancelVoice();
+    } catch {
+      /* ignore cancel errors */
+    }
+    setVoiceInFlight(false);
+    setBusy(false);
   };
 
   return (
@@ -251,11 +289,20 @@ export default function IntakeScreen() {
             <View style={styles.micWrap}>
               <MicButton
                 isRecording={isRecording}
-                processing={busy}
-                disabled={busy}
+                processing={busy && !isRecording}
+                disabled={busy && !isRecording}
                 onStart={onMicStart}
                 onStop={onMicStop}
               />
+              {showVoiceCancel ? (
+                <PrimaryButton
+                  label={t(language, 'cancelVoice')}
+                  onPress={onMicCancel}
+                  variant="secondary"
+                  compact
+                  fullWidth={false}
+                />
+              ) : null}
             </View>
             <View style={styles.textWrap}>
               <Text style={styles.fallbackLabel}>{t(language, 'typeInstead')}</Text>
@@ -280,7 +327,7 @@ export default function IntakeScreen() {
             </View>
           </View>
         )}
-        {busy ? <ActivityIndicator color={colors.teal700} style={styles.loader} /> : null}
+        {busy && !isRecording ? <ActivityIndicator color={colors.teal700} style={styles.loader} /> : null}
       </View>
     </KeyboardAvoidingView>
   );
@@ -351,7 +398,7 @@ const styles = StyleSheet.create({
     padding: space[4],
     gap: space[3],
   },
-  micWrap: { alignItems: 'center', paddingTop: space[1] },
+  micWrap: { alignItems: 'center', paddingTop: space[1], gap: space[3] },
   textWrap: { gap: space[2] },
   fallbackLabel: { ...typography.caption, textAlign: 'center' },
   inputRow: {

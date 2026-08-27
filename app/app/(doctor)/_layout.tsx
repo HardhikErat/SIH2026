@@ -30,7 +30,7 @@ export default function DoctorLayout() {
         options={{
           title: 'Doctor login',
           headerLeft: () => (
-            <Pressable onPress={() => router.push('/')} style={backStyles.back}>
+            <Pressable onPress={() => router.replace('/')} style={backStyles.back}>
               <Text style={backStyles.backText}>Home</Text>
             </Pressable>
           ),

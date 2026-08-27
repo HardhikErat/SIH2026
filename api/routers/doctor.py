@@ -113,8 +113,23 @@ def doctor_intake(intake_id: str, principal: dict = Depends(require_staff)) -> d
         current_fields.aadhaar_last4 = intake.get("aadhaar_last4") or patient.get("aadhaar_last4")
     analysis = analyze_patient_history(current_fields, history_rows)
 
+    # Doctor-facing structured summary must be English (generate on read if older intakes lack it)
+    consultation_summary_en = intake.get("consultation_summary_en")
+    patient_lang = (intake.get("language") or "en").split("-")[0].lower()
+    if not consultation_summary_en:
+        if patient_lang == "en" and intake.get("consultation_summary"):
+            consultation_summary_en = intake.get("consultation_summary")
+        else:
+            try:
+                from core.llm_gateway import gateway
+
+                consultation_summary_en = gateway.generate_consultation_summary(current_fields, "en")
+            except Exception:  # noqa: BLE001
+                consultation_summary_en = None
+
     return {
         **intake,
+        "consultation_summary_en": consultation_summary_en,
         "audit_log": audit,
         "source_tag": "AI_GENERATED" if intake.get("status") == IntakeStatus.AI_GENERATED.value else "DOCTOR_VERIFIED",
         "patient": {

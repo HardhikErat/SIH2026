@@ -50,7 +50,9 @@ export function RobotEyes({
   const leftRef = useRef<SVGGElement>(null);
   const rightRef = useRef<SVGGElement>(null);
   const reactId = useId().replace(/[^a-zA-Z0-9_-]/g, '');
-  const ns = idPrefix ?? reactId;
+  // Always uniquify SVG paint-server ids so stacked landing remounts after login/Home
+  // cannot leave pupils unpainted (white catchlights only).
+  const ns = idPrefix ? `${idPrefix}-${reactId}` : reactId;
   const ids = {
     leftEyeClip: `${ns}-left-eye-clip`,
     rightEyeClip: `${ns}-right-eye-clip`,
@@ -152,6 +154,7 @@ export function RobotEyes({
 
         <g clipPath={`url(#${ids.leftEyeClip})`}>
           <g ref={leftRef} id={ids.leftPupil}>
+            <ellipse cx={LEFT_PUPIL.cx} cy={LEFT_PUPIL.cy} rx={LEFT_PUPIL.rx} ry={LEFT_PUPIL.ry} fill="#00b4ff" />
             <ellipse cx={LEFT_PUPIL.cx} cy={LEFT_PUPIL.cy} rx={LEFT_PUPIL.rx} ry={LEFT_PUPIL.ry} fill={`url(#${ids.eyeGlow})`} />
             <circle
               cx={LEFT_PUPIL.catchlightPrimary.cx}
@@ -172,6 +175,7 @@ export function RobotEyes({
 
         <g clipPath={`url(#${ids.rightEyeClip})`}>
           <g ref={rightRef} id={ids.rightPupil}>
+            <ellipse cx={RIGHT_PUPIL.cx} cy={RIGHT_PUPIL.cy} rx={RIGHT_PUPIL.rx} ry={RIGHT_PUPIL.ry} fill="#00b4ff" />
             <ellipse cx={RIGHT_PUPIL.cx} cy={RIGHT_PUPIL.cy} rx={RIGHT_PUPIL.rx} ry={RIGHT_PUPIL.ry} fill={`url(#${ids.eyeGlow})`} />
             <circle
               cx={RIGHT_PUPIL.catchlightPrimary.cx}

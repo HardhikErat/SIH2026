@@ -6,7 +6,7 @@ import { colors, fonts, radius, space } from '../../shared/theme';
 
 function BackHome() {
   return (
-    <Pressable onPress={() => router.push('/')} accessibilityRole="button" style={styles.back}>
+    <Pressable onPress={() => router.replace('/')} accessibilityRole="button" style={styles.back}>
       <Text style={styles.backText}>Home</Text>
     </Pressable>
   );

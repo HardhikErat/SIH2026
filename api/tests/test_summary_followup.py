@@ -49,6 +49,30 @@ def test_merge_keeps_field_medications():
     assert merged["current_medications"] == ["paracetamol"]
 
 
+def test_merge_keeps_localized_llm_wording_for_patients():
+    fields = CollectedFields(
+        display_name="Ravi",
+        age=22,
+        gender="male",
+        chief_complaint="SYM_FEVER",
+        fever="true",
+        medications=["paracetamol"],
+        takes_medication="true",
+    )
+    llm = {
+        "main_complaint": "बुखार",
+        "symptoms": ["बुखार", "सिरदर्द"],
+        "observations": ["मरीज़ को बुखार है।"],
+        "recommended_next_steps": ["आराम करें"],
+        "current_medications": [],
+    }
+    merged = merge_summary_with_fields(llm, fields, "hi")
+    assert merged["main_complaint"] == "बुखार"
+    assert "बुखार" in merged["symptoms"]
+    assert any("बुखार" in str(o) for o in merged["observations"])
+    assert merged["current_medications"] == ["paracetamol"]
+
+
 def test_continue_talking_regenerates_summary_without_blocking_chat_contract():
     start = client.post(
         "/api/v1/session/start",

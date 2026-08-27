@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { api } from '../../../shared/api/client';
 import { AppHeader } from '../../../shared/components/AppHeader';
+import { ConsultationSummaryCard } from '../../../shared/components/ConsultationSummaryCard';
 import { EditableField } from '../../../shared/components/EditableField';
 import { FlagBadge } from '../../../shared/components/FlagBadge';
 import {
@@ -80,6 +81,13 @@ export default function DoctorPatientDetail() {
         title={patientName}
         subtitle={intake.ai_summary}
       />
+
+      {intake.consultation_summary_en || intake.consultation_summary ? (
+        <ConsultationSummaryCard
+          summary={(intake.consultation_summary_en || intake.consultation_summary)!}
+          language="en"
+        />
+      ) : null}
 
       <StatusPill
         label={

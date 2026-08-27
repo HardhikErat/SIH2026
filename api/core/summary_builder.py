@@ -117,17 +117,22 @@ def merge_summary_with_fields(
     fields: CollectedFields,
     language: str = "en",
 ) -> dict[str, Any]:
-    """Prefer structured fields for facts; keep LLM wording for soft sections when useful."""
+    """Prefer structured fields for facts; keep LLM wording for soft sections when useful.
+
+    For non-English patient summaries, keep LLM-localized display strings
+    (complaint, symptoms, observations) when present so patients see their language.
+    English doctor summaries still prefer field-grounded wording.
+    """
     base = build_summary_from_fields(fields, language)
     if not llm_summary:
         return base
-    # Keep field-grounded facts
+
+    lang = (language or "en").split("-")[0].lower()
+    # Always ground demographics / structured clinical facts from fields
     for key in (
         "patient_name",
         "patient_age",
         "patient_gender",
-        "main_complaint",
-        "symptoms",
         "duration",
         "severity",
         "current_medications",
@@ -135,6 +140,18 @@ def merge_summary_with_fields(
     ):
         if base.get(key) not in (None, [], ""):
             llm_summary[key] = base[key]
+
+    if lang == "en":
+        for key in ("main_complaint", "symptoms"):
+            if base.get(key) not in (None, [], ""):
+                llm_summary[key] = base[key]
+    else:
+        # Patient-facing: keep localized LLM wording when available
+        if not llm_summary.get("main_complaint"):
+            llm_summary["main_complaint"] = base.get("main_complaint")
+        if not llm_summary.get("symptoms"):
+            llm_summary["symptoms"] = base.get("symptoms") or []
+
     # Ensure observations mention meds if present
     if base.get("current_medications"):
         obs = list(llm_summary.get("observations") or [])
@@ -142,8 +159,22 @@ def merge_summary_with_fields(
         if not any("medication" in str(o).casefold() or "औषध" in str(o) for o in obs):
             obs.append(med_line)
         llm_summary["observations"] = obs or base.get("observations") or []
+    elif not llm_summary.get("observations"):
+        llm_summary["observations"] = base.get("observations") or []
+
     if not llm_summary.get("recommended_next_steps"):
         llm_summary["recommended_next_steps"] = base["recommended_next_steps"]
     if not llm_summary.get("ai_disclaimer"):
         llm_summary["ai_disclaimer"] = base["ai_disclaimer"]
     return llm_summary
+
+
+def ensure_english_summary(
+    fields: CollectedFields,
+    existing_en: dict[str, Any] | None,
+    generate_fn,
+) -> dict[str, Any]:
+    """Return an English consultation summary for doctor views (generate if missing)."""
+    if existing_en:
+        return existing_en
+    return generate_fn(fields, "en")

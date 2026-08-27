@@ -23,12 +23,13 @@ export default function PatientEntry() {
   const [gender, setGender] = useState<string | null>(null);
   const [aadhaar, setAadhaar] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
-  const { setLanguage: setStoreLang, setAudioConsent, start, sessionId } = useSession();
+  const { setLanguage: setStoreLang, setAudioConsent, start, sessionId, setDoctorToken } = useSession();
 
   // Kiosk privacy: clear registration fields whenever we land here without an active session.
   useFocusEffect(
     useCallback(() => {
       if (sessionId) return;
+      setDoctorToken(null);
       setConsent(false);
       setLoading(false);
       setName('');
@@ -36,7 +37,7 @@ export default function PatientEntry() {
       setGender(null);
       setAadhaar('');
       setFormError(null);
-    }, [sessionId]),
+    }, [sessionId, setDoctorToken]),
   );
 
   const langs = useQuery({ queryKey: ['languages'], queryFn: () => api.languages() });

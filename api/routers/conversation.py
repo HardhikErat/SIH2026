@@ -267,22 +267,36 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
     phase = detect_phase(merged).value
 
     summary = None
+    summary_en = None
     summary_updated = False
     if done:
         phase = "completed"
         had_new_facts = bool(delta)
         prior_summary = session.get("consultation_summary")
+        prior_summary_en = session.get("consultation_summary_en")
+        lang_code = (language or "en").split("-")[0].lower()
         # Regenerate when first completing OR patient added/changed facts after "Continue talking"
         if not prior_summary or had_new_facts:
+            # Patient-facing summary in their selected language
             summary = gateway.generate_consultation_summary(merged, language)
+            # Doctor always gets an English copy
+            if lang_code == "en":
+                summary_en = summary
+            else:
+                summary_en = gateway.generate_consultation_summary(merged, "en")
             summary_updated = True
         else:
             summary = prior_summary
+            summary_en = prior_summary_en or (
+                prior_summary if lang_code == "en" else gateway.generate_consultation_summary(merged, "en")
+            )
             summary_updated = False
 
     session["phase"] = phase
     if summary:
         session["consultation_summary"] = summary
+    if summary_en:
+        session["consultation_summary_en"] = summary_en
 
     store.save_session(session)
 
@@ -300,6 +314,7 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
         "conversation_memory": memory.model_dump(),
         "phase": phase,
         "consultation_summary": summary,
+        "consultation_summary_en": summary_en,
         "fact_chips": _chips(merged),
         "model_version": gateway.model_version,
         "llm_live": gateway.live,

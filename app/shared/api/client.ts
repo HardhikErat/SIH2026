@@ -206,6 +206,7 @@ export type DoctorIntake = {
   prior_visit_count?: number;
   turn_history?: { speaker?: string; text?: string }[];
   consultation_summary?: Record<string, unknown>;
+  consultation_summary_en?: Record<string, unknown>;
 };
 
 export { colors };

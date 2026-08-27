@@ -72,15 +72,25 @@ def confirm_intake(session_id: str, body: ConfirmBody, principal: dict = Depends
 
     fields = CollectedFields.model_validate(session.get("collected_fields") or {})
     rules = run_rule_engine(fields)
+    # Doctor clinical prose is always English
     ai_summary = gateway.summarize_clinical(fields)
+    patient_lang = session.get("language") or "en"
+    lang_code = patient_lang.split("-")[0].lower()
     consultation_summary = session.get("consultation_summary")
+    consultation_summary_en = session.get("consultation_summary_en")
     if not consultation_summary:
         try:
-            consultation_summary = gateway.generate_consultation_summary(
-                fields, session.get("language") or "en"
-            )
+            consultation_summary = gateway.generate_consultation_summary(fields, patient_lang)
         except Exception:  # noqa: BLE001
             consultation_summary = None
+    if not consultation_summary_en:
+        if lang_code == "en" and consultation_summary:
+            consultation_summary_en = consultation_summary
+        else:
+            try:
+                consultation_summary_en = gateway.generate_consultation_summary(fields, "en")
+            except Exception:  # noqa: BLE001
+                consultation_summary_en = consultation_summary if lang_code == "en" else None
 
     patient = store.get_patient(session["patient_id"]) or {}
     hashed = session.get("aadhaar_hash") or patient.get("aadhaar_hash")
@@ -126,6 +136,7 @@ def confirm_intake(session_id: str, body: ConfirmBody, principal: dict = Depends
             "priority_flag": rules.priority_flag.value,
             "ai_summary": ai_summary,
             "consultation_summary": consultation_summary,
+            "consultation_summary_en": consultation_summary_en,
             "turn_history": list(session.get("turn_history") or []),
             "language": session.get("language") or "en",
             "status": IntakeStatus.AI_GENERATED.value,

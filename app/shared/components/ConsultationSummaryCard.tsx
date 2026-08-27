@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { Card } from './Card';
+import { t } from '../i18n';
 import { colors, fonts, space, typography } from '../theme';
+import { Card } from './Card';
 
 type Props = {
   summary: Record<string, any>;
@@ -8,20 +9,19 @@ type Props = {
 };
 
 export function ConsultationSummaryCard({ summary, language }: Props) {
-  // We can eventually translate the section labels if needed, but for now we'll use English keys 
-  // and rely on the AI's generation for the content in the target language.
+  const lang = language || 'en';
   return (
     <Card style={styles.card}>
       <View style={styles.disclaimerBox}>
         <Text style={styles.disclaimerText}>
-          {summary.ai_disclaimer || 'AI-Generated · Not a Diagnosis'}
+          {summary.ai_disclaimer || t(lang, 'aiDisclaimer')}
         </Text>
       </View>
 
-      <Text style={styles.title}>Consultation Summary</Text>
+      <Text style={styles.title}>{t(lang, 'consultationSummary')}</Text>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Patient Details</Text>
+        <Text style={styles.label}>{t(lang, 'patientDetails')}</Text>
         <Text style={styles.text}>
           {summary.patient_name || 'N/A'}, {summary.patient_age ? `${summary.patient_age} yrs` : 'N/A'},{' '}
           {summary.patient_gender || 'N/A'}
@@ -29,72 +29,84 @@ export function ConsultationSummaryCard({ summary, language }: Props) {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Main Complaint</Text>
+        <Text style={styles.label}>{t(lang, 'mainComplaint')}</Text>
         <Text style={styles.text}>{summary.main_complaint || 'N/A'}</Text>
       </View>
 
       {summary.symptoms && summary.symptoms.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.label}>Symptoms</Text>
+          <Text style={styles.label}>{t(lang, 'symptoms')}</Text>
           {summary.symptoms.map((s: string, i: number) => (
-            <Text key={i} style={styles.bullet}>• {s}</Text>
+            <Text key={i} style={styles.bullet}>
+              • {s}
+            </Text>
           ))}
         </View>
       )}
 
       {summary.duration && (
         <View style={styles.section}>
-          <Text style={styles.label}>Duration</Text>
+          <Text style={styles.label}>{t(lang, 'duration')}</Text>
           <Text style={styles.text}>{summary.duration}</Text>
         </View>
       )}
 
       {summary.severity && (
         <View style={styles.section}>
-          <Text style={styles.label}>Severity</Text>
+          <Text style={styles.label}>{t(lang, 'severity') || 'Severity'}</Text>
           <Text style={styles.text}>{String(summary.severity)}</Text>
         </View>
       )}
 
       {summary.current_medications && summary.current_medications.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.label}>Medications</Text>
+          <Text style={styles.label}>{t(lang, 'medications') || 'Medications'}</Text>
           {summary.current_medications.map((m: string, i: number) => (
-            <Text key={i} style={styles.bullet}>• {m}</Text>
+            <Text key={i} style={styles.bullet}>
+              • {m}
+            </Text>
           ))}
         </View>
       )}
 
       {summary.allergies && summary.allergies !== 'unknown' && (
         <View style={styles.section}>
-          <Text style={styles.label}>Allergies</Text>
-          <Text style={styles.text}>{summary.allergies === 'none' ? 'None reported' : String(summary.allergies)}</Text>
+          <Text style={styles.label}>{t(lang, 'allergies') || 'Allergies'}</Text>
+          <Text style={styles.text}>
+            {summary.allergies === 'none' ? t(lang, 'noneReported') || 'None reported' : String(summary.allergies)}
+          </Text>
         </View>
       )}
 
       {summary.medical_history && summary.medical_history.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.label}>Medical History</Text>
+          <Text style={styles.label}>{t(lang, 'medicalHistory')}</Text>
           {summary.medical_history.map((m: string, i: number) => (
-            <Text key={i} style={styles.bullet}>• {m}</Text>
+            <Text key={i} style={styles.bullet}>
+              • {m}
+            </Text>
           ))}
         </View>
       )}
 
       {summary.observations && summary.observations.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.label}>Observations</Text>
+          <Text style={styles.label}>{t(lang, 'observations')}</Text>
           {summary.observations.map((o: string, i: number) => (
-            <Text key={i} style={styles.bullet}>• {o}</Text>
+            <Text key={i} style={styles.bullet}>
+              • {o}
+            </Text>
           ))}
         </View>
       )}
 
       {summary.recommended_next_steps && summary.recommended_next_steps.length > 0 && (
         <View style={styles.section}>
-          <Text style={styles.label}>Recommended Next Steps</Text>
+          <Text style={styles.label}>{t(lang, 'nextSteps')}</Text>
           {summary.recommended_next_steps.map((r: string, i: number) => (
-            <Text key={i} style={styles.bullet}>• {r}</Text>
+            <Text key={i} style={styles.bullet}>
+              • {r}
+            </Text>
           ))}
         </View>
       )}
@@ -115,7 +127,13 @@ const styles = StyleSheet.create({
   disclaimerText: { ...typography.caption, color: colors.inkMuted },
   title: { ...typography.title, fontSize: 20, marginBottom: space[2] },
   section: { gap: space[1] },
-  label: { ...typography.caption, fontFamily: fonts.uiSemiBold, color: colors.teal700, textTransform: 'uppercase', letterSpacing: 0.5 },
+  label: {
+    ...typography.caption,
+    fontFamily: fonts.uiSemiBold,
+    color: colors.teal700,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   text: { ...typography.body, color: colors.ink },
   bullet: { ...typography.body, color: colors.ink, paddingLeft: space[2] },
 });

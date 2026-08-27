@@ -79,5 +79,6 @@ export const useSession = create<SessionState>((set) => ({
       patientDetails: null,
       consultationSummary: null,
       conversationComplete: false,
+      doctorToken: null,
     }),
 }));

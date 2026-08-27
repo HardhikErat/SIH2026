@@ -15,12 +15,14 @@ export default function DoctorLogin() {
   const [email, setEmail] = useState('doctor@camp.local');
   const [password, setPassword] = useState('camp-demo');
   const [error, setError] = useState<string | null>(null);
-  const { setDoctorToken } = useSession();
+  const { setDoctorToken, reset } = useSession();
 
   const onLogin = async () => {
     setError(null);
     try {
       const res = await api.doctorLogin(email, password);
+      // Clear any patient kiosk session before doctor mode
+      reset();
       setDoctorToken(res.token);
       router.replace('/(doctor)/queue');
     } catch {
