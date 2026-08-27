@@ -8,7 +8,9 @@ export default function Root({ children }: { children: ReactNode }) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
         <meta name="theme-color" content="#062035" />
-        <meta name="description" content="Hospital-grade multilingual clinical intake for outreach camps and OPD queues." />
+        <meta name="application-name" content="Aira" />
+        <meta name="description" content="Aira — hospital-grade multilingual clinical intake for outreach camps and OPD queues." />
+        <title>Aira</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link

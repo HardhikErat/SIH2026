@@ -1,6 +1,6 @@
-# Multilingual AI Pre-Consultation & Clinical Intake Assistant
+# Aira — Multilingual AI Pre-Consultation & Clinical Intake
 
-Monorepo for CrackCoders (SIH26_25). See `/docs` for the binding specification.
+Product name: **Aira**. Monorepo for CrackCoders (SIH26_25). See `/docs` for the binding specification.
 
 ## Structure
 

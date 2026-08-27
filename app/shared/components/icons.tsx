@@ -1,3 +1,4 @@
+import { Image, StyleSheet } from 'react-native';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { colors } from '../theme';
 
@@ -10,20 +11,25 @@ function base(size: number) {
   return { width: size, height: size, viewBox: '0 0 24 24' } as const;
 }
 
-/** Clinical Intake brand mark — medical cross in a rounded square */
+const airaLogo = require('../../assets/images/aira-logo.png');
+
+/** Aira brand mark — robot-face logo */
 export function BrandMark({ size = 32 }: { size?: number }) {
-  const r = Math.round(size * 0.28);
   return (
-    <Svg width={size} height={size} viewBox="0 0 32 32">
-      <Rect x={0} y={0} width={32} height={32} rx={r} fill={colors.navy800} />
-      <Rect x={4} y={4} width={24} height={24} rx={Math.max(6, r - 2)} fill={colors.teal500} />
-      <Path
-        d="M15 9h2v5h5v2h-5v5h-2v-5H10v-2h5V9z"
-        fill={colors.white}
-      />
-    </Svg>
+    <Image
+      source={airaLogo}
+      accessibilityLabel="Aira"
+      style={[styles.brandMark, { width: size, height: size, borderRadius: Math.round(size * 0.22) }]}
+    />
   );
 }
+
+const styles = StyleSheet.create({
+  brandMark: {
+    resizeMode: 'contain',
+    backgroundColor: 'transparent',
+  },
+});
 
 export function IconGlobe({ size = 24, color = colors.teal700 }: IconProps) {
   return (

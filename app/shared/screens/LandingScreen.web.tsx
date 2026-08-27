@@ -307,7 +307,10 @@ export default function LandingScreen() {
       <footer style={footer}>
         <div style={footerInner}>
           <div>
-            <div style={footerLogo}>SIH Clinical Intake</div>
+            <div style={footerBrandRow}>
+              <BrandMark size={28} />
+              <div style={footerLogo}>Aira</div>
+            </div>
             <p style={footerTag}>Pre-consultation · Multilingual · Doctor-verified</p>
           </div>
           <p style={footerCopy}>© 2026 · Your data is shared only with your care team</p>
@@ -328,7 +331,7 @@ function SiteNav() {
       <div style={navInner}>
         <div style={navBrand}>
           <BrandMark size={28} />
-          <span style={navName}>Clinical Intake</span>
+          <span style={navName}>Aira</span>
         </div>
         <nav className="landing-nav-links" style={navLinks}>
           <a href="#features" style={navLink}>Features</a>
@@ -740,6 +743,12 @@ const footerLogo: React.CSSProperties = {
   fontFamily: fonts.uiSemiBold,
   fontSize: 18,
   color: colors.white,
+  marginBottom: 0,
+};
+const footerBrandRow: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
   marginBottom: 6,
 };
 const footerTag: React.CSSProperties = {

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Clinical Intake Assistant",
-    "slug": "sih2026-intake",
+    "name": "Aira",
+    "slug": "aira-intake",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "intake",
+    "scheme": "aira",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,

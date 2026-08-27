@@ -189,7 +189,7 @@ function RobotEyesInner(
     maxPupilTravel = MAX_PUPIL_TRAVEL,
     trackingEnabled = true,
     idPrefix,
-    accessibilityLabel = 'Intake assistant robot with tracking eyes',
+    accessibilityLabel = 'Aira — intake assistant with tracking eyes',
     testID = 'robot-eyes',
     style,
   }: RobotEyesProps,

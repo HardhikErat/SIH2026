@@ -15,6 +15,7 @@ export default function LandingScreen() {
       <View style={styles.hero}>
         <View style={styles.brandRow}>
           <BrandMark size={36} />
+          <Text style={styles.brandName}>Aira</Text>
           <StatusPill label="NABH-aligned workflow · Camp intake live" tone="ok" />
         </View>
         <View style={styles.heroRow}>
@@ -95,6 +96,12 @@ const styles = StyleSheet.create({
     gap: space[5],
   },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: space[3], flexWrap: 'wrap' },
+  brandName: {
+    fontFamily: fonts.uiSemiBold,
+    fontSize: 22,
+    color: colors.white,
+    letterSpacing: -0.3,
+  },
   heroRow: { flexDirection: 'row', flexWrap: 'nowrap', alignItems: 'center', gap: space[5] },
   heroCopy: { flex: 1.1, minWidth: 0, gap: space[4] },
   heroRobot: { flex: 0.9, minWidth: 0, maxWidth: 360 },
