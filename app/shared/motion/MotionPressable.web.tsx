@@ -13,6 +13,13 @@ export function MotionPressable({ children, style, disabled, onPress }: Props) {
   const reduced = useReducedMotion();
   const flat = (StyleSheet.flatten(style) ?? {}) as CSSProperties;
 
+  const handleActivate = (event?: { preventDefault?: () => void; stopPropagation?: () => void }) => {
+    if (disabled || !onPress) return;
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    onPress({} as Parameters<NonNullable<PressableProps['onPress']>>[0]);
+  };
+
   return (
     <motion.div
       role="button"
@@ -24,13 +31,12 @@ export function MotionPressable({ children, style, disabled, onPress }: Props) {
         ...flat,
         // RN alignItems/justifyContent only apply with flex; motion.div is not a RN View
         display: 'flex',
+        pointerEvents: disabled ? 'none' : 'auto',
       }}
-      onClick={disabled || !onPress ? undefined : () => onPress({} as Parameters<NonNullable<PressableProps['onPress']>>[0])}
+      onClick={(event) => handleActivate(event)}
       onKeyDown={(event) => {
-        if (disabled || !onPress) return;
         if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onPress(event as unknown as Parameters<NonNullable<PressableProps['onPress']>>[0]);
+          handleActivate(event);
         }
       }}
       whileHover={disabled || reduced ? undefined : { y: -1 }}

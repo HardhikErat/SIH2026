@@ -27,6 +27,32 @@ SESSION_COLUMNS = {
     "updated_at",
 }
 
+INTAKE_COLUMNS = {
+    "session_id",
+    "patient_id",
+    "aadhaar_hash",
+    "aadhaar_last4",
+    "chief_complaint",
+    "duration",
+    "symptoms",
+    "medical_history",
+    "medications",
+    "allergies",
+    "missing_information",
+    "contradictions",
+    "priority_flag",
+    "ai_summary",
+    "consultation_summary",
+    "consultation_summary_en",
+    "turn_history",
+    "language",
+    "status",
+    "structured_fields",
+    "doctor_id",
+    "verified_at",
+    "camp_id",
+}
+
 
 class SupabaseStore:
     def __init__(self) -> None:
@@ -132,7 +158,8 @@ class SupabaseStore:
         return res.data[0] if res.data else session
 
     def create_intake(self, row: dict) -> dict:
-        res = self.client.table("intakes").insert(row).execute()
+        payload = {k: v for k, v in row.items() if k in INTAKE_COLUMNS and v is not None}
+        res = self.client.table("intakes").insert(payload).execute()
         return res.data[0]
 
     def get_intake(self, intake_id: str) -> dict | None:
