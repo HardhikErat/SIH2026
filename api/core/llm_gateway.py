@@ -391,12 +391,34 @@ def _stub_reply(user: str) -> str:
         payload = {}
     hint = str(payload.get("next_hint") or "").strip()
     utterance = str(payload.get("patient_utterance") or "").strip()
+    lang = str(payload.get("language") or "en").split("-")[0].lower()
+    done = {
+        "en": "Thank you. I have enough to show you a summary. Please check it.",
+        "hi": "धन्यवाद। मैंने सारांश तैयार कर लिया है। कृपया जाँच लें।",
+        "mr": "धन्यवाद. मी सारांश तयार केला आहे. कृपया तपासा.",
+    }
+    noted = {
+        "en": "I noted: {snippet}. {rest}",
+        "hi": "मैंने नोट किया: {snippet}. {rest}",
+        "mr": "मी नोंद केले: {snippet}. {rest}",
+    }
+    more = {
+        "en": "Please tell me a little more.",
+        "hi": "कृपया थोड़ा और बताइए।",
+        "mr": "कृपया थोडे अधिक सांगा.",
+    }
+    more_general = {
+        "en": "Please tell me a little more about what is bothering you.",
+        "hi": "कृपया बताइए कि आपको क्या तकलीफ है।",
+        "mr": "कृपया सांगा की तुम्हाला काय त्रास आहे.",
+    }
     if payload.get("next_field") in (None, "", "NONE"):
-        return "Thank you. I have enough to show you a summary. Please check it."
+        return done.get(lang, done["en"])
     if utterance:
         snippet = utterance[:80]
-        return f"I noted: {snippet}. {hint or 'Please tell me a little more.'}"
-    return hint or "Please tell me a little more about what is bothering you."
+        rest = hint or more.get(lang, more["en"])
+        return noted.get(lang, noted["en"]).format(snippet=snippet, rest=rest)
+    return hint or more_general.get(lang, more_general["en"])
 
 
 def _extract_json(text: str) -> dict[str, Any]:
