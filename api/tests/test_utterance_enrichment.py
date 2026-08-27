@@ -174,3 +174,44 @@ def test_duration_not_reasked_after_asked():
     )
     q = next(x for x in QUESTION_BANK if x.id == "Q_DURATION")
     assert should_ask_question(q, fields, ["Q_DURATION:duration"]) is False
+
+
+def test_hindi_nahi_clears_allergies_like_english_no():
+    for utter in ("nahi", "Nahi", "nahi.", "नहीं", "नही", "नाही", "नको", "kuch nahi", "कोई नहीं"):
+        delta = enrich_utterance_delta(utter, {}, pending_field="allergies")
+        assert delta.get("allergies") == "none", utter
+        assert delta.get("has_allergy") == "false", utter
+
+
+def test_hindi_haan_sets_allergy_yes():
+    for utter in ("haan", "हां", "हाँ", "जी", "yes"):
+        delta = enrich_utterance_delta(utter, {}, pending_field="allergies")
+        assert delta.get("has_allergy") == "true", utter
+
+
+def test_nahi_clears_medications_and_clinical_flags():
+    med = enrich_utterance_delta("nahi", {}, pending_field="medications")
+    assert med["medications"] == "none"
+    assert med["takes_medication"] == "false"
+    breath = enrich_utterance_delta("नहीं", {}, pending_field="breathing_difficulty")
+    assert breath["breathing_difficulty"] == "false"
+    assoc = enrich_utterance_delta("nahi", {}, pending_field="associated_symptoms_checked")
+    assert assoc["associated_symptoms_checked"] == "true"
+
+
+def test_pata_nahi_is_not_clinical_no_for_allergies():
+    delta = enrich_utterance_delta("पता नहीं", {}, pending_field="allergies")
+    assert delta.get("allergies") != "none"
+    assert delta.get("has_allergy") != "false"
+    delta2 = enrich_utterance_delta("pata nahi", {}, pending_field="allergies")
+    assert delta2.get("allergies") != "none"
+
+
+def test_nahi_overrides_llm_unknown_allergies():
+    delta = enrich_utterance_delta(
+        "nahi",
+        {"allergies": "unknown", "has_allergy": "unknown"},
+        pending_field="allergies",
+    )
+    assert delta["allergies"] == "none"
+    assert delta["has_allergy"] == "false"

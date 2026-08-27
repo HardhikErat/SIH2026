@@ -34,8 +34,12 @@ the assistant JUST asked. Map short answers to THAT field:
 - pending_field=duration + patient says "2" / "दो" / "चार" / "4" / "चार दिन" → duration_days + duration
 - pending_field=severity + "tez" / "mild" / "गंभीर" → severity
 - pending_field=chief_complaint + any illness word → chief_complaint (never leave empty)
-- pending_field=medications + "no" / "नहीं" → medications:"none", takes_medication:"false"
-- pending_field=allergies + "no" → allergies:"none", has_allergy:"false"
+- pending_field=medications + "no" / "nahi" / "नहीं" / "नाही" / "नको" → medications:"none", takes_medication:"false"
+- pending_field=allergies + "no" / "nahi" / "नहीं" / "कुछ नहीं" → allergies:"none", has_allergy:"false"
+- pending_field=allergies + "haan" / "हां" / "हाँ" / "yes" → has_allergy:"true"
+- pending_field=breathing_difficulty (or fever/vomiting/chest_pain/headache) + "nahi"/"नहीं" → that field "false"
+- pending_field=associated_symptoms_checked + "nahi"/"नहीं"/"no nothing" → associated_symptoms_checked:"true"
+Romanized Hinglish (nahi, nahe, nhi, haan, han, ji) counts the same as Devanagari.
 
 ========================
 ASR / SPELLING TOLERANCE (critical)
@@ -109,6 +113,16 @@ Few-shot examples:
 12) utterance="पीठ दर्द दो दिन से"
    {{"chief_complaint":"SYM_BACK_PAIN","complaint_category":"default","duration":"2 days","duration_days":2,
      "symptoms":[{{"concept_id":"SYM_BACK_PAIN","raw_term":"पीठ दर्द"}}]}}
+13) pending_field=allergies, utterance="nahi" OR "नहीं" OR "नाही" OR "kuch nahi"
+   {{"allergies":"none","has_allergy":"false"}}
+14) pending_field=allergies, utterance="haan" OR "हां" OR "हाँ"
+   {{"has_allergy":"true"}}
+15) pending_field=medications, utterance="nahi" OR "नहीं" OR "नको"
+   {{"medications":"none","takes_medication":"false"}}
+16) pending_field=breathing_difficulty, utterance="nahi" OR "नहीं"
+   {{"breathing_difficulty":"false"}}
+17) pending_field=associated_symptoms_checked, utterance="nahi" OR "कुछ नहीं"
+   {{"associated_symptoms_checked":"true"}}
 """
 
 SUMMARY_PROMPT = """Given this structured intake JSON, write a 3-5 sentence factual
@@ -366,7 +380,12 @@ class KeywordStubProvider:
             med = "paracetamol" if "paracetamol" in text or "crocin" in text or "dolo" in text else "BP tablet"
             delta["medications"] = [med]
             delta["takes_medication"] = "true"
-        if "no allerg" in text or "allergy nahi" in text:
+        if (
+            "no allerg" in text
+            or "allergy nahi" in text
+            or "एलर्जी नहीं" in text
+            or "अॅलर्जी नाही" in text
+        ):
             delta["allergies"] = "none"
             delta["has_allergy"] = "false"
         if "don't know" in text or "i don't know" in text or "पता नहीं" in text:

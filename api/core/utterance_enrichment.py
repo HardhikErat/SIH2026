@@ -30,7 +30,39 @@ _SEVERITY_MAP = {
     "तीव्र": "severe",
 }
 
-_YES_RE = re.compile(r"^\s*(yes|y|haan|han|ha|हाँ|हां|होय|ji)\b", re.I)
+# Devanagari must NOT use ASCII \b — anusvara/matras are non-\w so \b breaks
+# matches for नहीं / हां / जी. Use letter-aware boundaries instead.
+_DEV_BOUND = r"(?<![\w\u0900-\u097F])"
+_DEV_END = r"(?![\w\u0900-\u097F])"
+
+_YES_RE = re.compile(
+    rf"(?:"
+    rf"{_DEV_BOUND}(?:yes|yeah|yep|yup|y|ok|okay|sure|haan|han|haa+|ha|ho|hoy|ji|jee|"
+    rf"bilkul|theek|thik|asa|ase){_DEV_END}|"
+    rf"{_DEV_BOUND}(?:हाँ|हां|हा|जी|जीहां|जीहाँ|होय|हो|बरं|ठीक|होईल|असे|असा){_DEV_END}"
+    rf")",
+    re.I,
+)
+
+_NO_RE = re.compile(
+    rf"(?:"
+    rf"{_DEV_BOUND}(?:no|nope|nah|nil|none|nothing|nahi+|nahe+|naahi+|nahee+|nhi+|nai|"
+    rf"naa+|nako|nay){_DEV_END}|"
+    rf"{_DEV_BOUND}(?:नहीं|नही|नहि|नाही|नको|नका|नाहीये|ना){_DEV_END}|"
+    rf"{_DEV_BOUND}(?:kuch\s*nahi+|koi\s*nahi+|kai\s*nahi+|no\s+nothing|"
+    rf"कुछ\s*नहीं|कोई\s*नहीं|काही\s*नाही|काही\s*नको){_DEV_END}"
+    rf")",
+    re.I,
+)
+
+_UNKNOWN_RE = re.compile(
+    rf"(?:"
+    rf"{_DEV_BOUND}(?:pata|yaad)\s*(?:nahi+|nahe+){_DEV_END}|"
+    rf"(?:पता|याद)\s*(?:नहीं|नही)|"
+    rf"{_DEV_BOUND}(?:don'?t\s+know|do\s+not\s+know|dont\s+know|not\s+sure|unsure){_DEV_END}"
+    rf")",
+    re.I,
+)
 
 _COMMON_MEDS = (
     "paracetamol",
@@ -100,6 +132,13 @@ _ASR_FIXES: list[tuple[str, str]] = [
     ("panch", "पाँच"),
     ("baarah", "बारह"),
     ("barah", "बारह"),
+    # Split yes/no ASR tokens
+    ("na hi", "nahi"),
+    ("nahee", "nahi"),
+    ("nahii", "nahi"),
+    ("naahi", "nahi"),
+    ("ha an", "haan"),
+    ("haaan", "haan"),
 ]
 
 _HINDI_NUM: dict[str, int] = {
@@ -297,17 +336,17 @@ def enrich_utterance_delta(
         out["medications"] = named
         out["takes_medication"] = "true"
     elif pending_field in ("medications", "takes_medication"):
-        if _is_no(lower) and "medications" not in out:
+        if _is_no(text) and _emptyish(out.get("medications")):
             out["medications"] = "none"
             out["takes_medication"] = "false"
         elif _declined_med_name(lower):
             if (collected and collected.takes_medication == "true") or pending_field == "medications":
-                if re.search(r"\b(yes|taking|le raha|ले रहा)\b", lower) or (
-                    collected and collected.takes_medication == "true"
-                ):
+                if _is_yes(text) or re.search(
+                    rf"{_DEV_BOUND}(?:taking|take|le raha|ले रहा){_DEV_END}", text, flags=re.I
+                ) or (collected and collected.takes_medication == "true"):
                     out["takes_medication"] = "true"
                     out["medications"] = "unspecified"
-                elif _is_no(lower):
+                elif _is_no(text):
                     out["medications"] = "none"
                     out["takes_medication"] = "false"
                 else:
@@ -317,14 +356,16 @@ def enrich_utterance_delta(
                     if out["takes_medication"] in (None, "unknown"):
                         out["takes_medication"] = "true"
                     out["medications"] = "unspecified"
-        elif _is_yes(lower) or re.search(r"\b(taking|take|le raha|ले रहा)\s+medicin", lower):
+        elif _is_yes(text) or re.search(
+            rf"{_DEV_BOUND}(?:taking|take|le raha|ले रहा)\s+medicin", text, flags=re.I
+        ):
             out["takes_medication"] = "true"
 
     if pending_field in ("allergies", "has_allergy"):
-        if _is_no(lower) and "allergies" not in out:
+        if _is_no(text) and _emptyish(out.get("allergies")):
             out["allergies"] = "none"
             out["has_allergy"] = "false"
-        elif _is_yes(lower) and "has_allergy" not in out:
+        elif _is_yes(text) and _emptyish(out.get("has_allergy")):
             out["has_allergy"] = "true"
 
     if pending_field in (
@@ -335,20 +376,30 @@ def enrich_utterance_delta(
         "chest_pain",
         "associated_symptoms_checked",
     ):
-        if _is_no(lower) and pending_field not in out:
+        if _is_no(text) and _emptyish(out.get(pending_field)):
             if pending_field == "associated_symptoms_checked":
                 out["associated_symptoms_checked"] = "true"
             else:
                 out[pending_field] = "false"
-        elif _is_yes(lower) and pending_field not in out:
+        elif _is_yes(text) and _emptyish(out.get(pending_field)):
             out[pending_field] = "true"
 
-    if re.search(r"\b(no|nahi|नहीं)\s+(medicine|medicines|meds|dawai|दवाई)", lower):
-        out.setdefault("medications", "none")
-        out.setdefault("takes_medication", "false")
-    if re.search(r"\b(no|nahi|नहीं)\s+(allerg(?:y|ies)|एलर्जी)", lower):
-        out.setdefault("allergies", "none")
-        out.setdefault("has_allergy", "false")
+    if re.search(
+        rf"(?:{_DEV_BOUND}(?:no|nahi+|nahe+)|नहीं|नही|नाही)\s+"
+        rf"(?:medicine|medicines|meds|dawai|दवाई|दवा)",
+        text,
+        flags=re.I,
+    ):
+        out["medications"] = "none"
+        out["takes_medication"] = "false"
+    if re.search(
+        rf"(?:{_DEV_BOUND}(?:no|nahi+|nahe+)|नहीं|नही|नाही)\s+"
+        rf"(?:allerg(?:y|ies)|एलर्जी|अॅलर्जी)",
+        text,
+        flags=re.I,
+    ):
+        out["allergies"] = "none"
+        out["has_allergy"] = "false"
 
     # Duration — including bare "2" / "चार" when duration was just asked
     if "duration_days" not in out and out.get("duration") in (None, "unknown", ""):
@@ -538,17 +589,94 @@ def _parse_severity(lower: str) -> str | None:
     return _SEVERITY_MAP.get(m.group(1).casefold(), _SEVERITY_MAP.get(m.group(1)))
 
 
+def _emptyish(value: Any) -> bool:
+    return value in (None, "unknown", "", [], {})
+
+
+def _strip_answer(text: str) -> str:
+    """Normalize short answers for yes/no matching."""
+    t = (text or "").strip()
+    t = normalize_patient_text(t)
+    # Drop trailing punctuation / danda
+    t = re.sub(r"[\s\.\,\!\?।॥]+$", "", t).strip()
+    return t
+
+
 def _is_yes(text: str) -> bool:
-    return bool(_YES_RE.search(text)) and not _is_no(text)
+    t = _strip_answer(text)
+    if not t or _UNKNOWN_RE.search(t) or _is_no(t):
+        return False
+    if _YES_RE.search(t):
+        return True
+    compact = re.sub(r"[\s\.\,\!\?।॥]+", "", t).casefold()
+    return compact in {
+        "हां",
+        "हाँ",
+        "हा",
+        "होय",
+        "हो",
+        "जी",
+        "जीहां",
+        "जीहाँ",
+        "असे",
+        "असा",
+        "बरं",
+        "ठीक",
+        "yes",
+        "yeah",
+        "yep",
+        "yup",
+        "y",
+        "ok",
+        "okay",
+        "sure",
+        "haan",
+        "han",
+        "ha",
+        "ho",
+        "hoy",
+        "ji",
+        "jee",
+        "bilkul",
+        "theek",
+        "thik",
+        "asa",
+        "ase",
+    }
 
 
 def _is_no(text: str) -> bool:
-    if re.search(r"\bno\s+nothing\b", text):
+    t = _strip_answer(text)
+    if not t:
+        return False
+    # "पता नहीं" / "nahi pata" are unknown, not a clinical no
+    if _UNKNOWN_RE.search(t):
+        return False
+    if _NO_RE.search(t):
         return True
-    if re.search(r"\b(nothing|none|nope|nil)\b", text):
-        return True
-    if re.search(r"\b(nahi|nahe+|नहीं|नाही)\b", text):
-        return True
-    if re.match(r"^\s*no\b", text):
-        return True
-    return False
+    compact = re.sub(r"[\s\.\,\!\?।॥]+", "", t).casefold()
+    return compact in {
+        "नहीं",
+        "नही",
+        "नहि",
+        "नाही",
+        "ना",
+        "नको",
+        "नका",
+        "नाहीये",
+        "no",
+        "nope",
+        "nah",
+        "nahi",
+        "nahin",
+        "nahe",
+        "naahi",
+        "nahee",
+        "nhi",
+        "nai",
+        "na",
+        "nako",
+        "none",
+        "nothing",
+        "nil",
+    }
