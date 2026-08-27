@@ -32,7 +32,8 @@ def test_summary_includes_medications_and_symptoms():
     assert summary["patient_gender"] == "पुरुष"
     assert any("paracetamol" in o.casefold() or "औषध" in o for o in summary["observations"])
     assert all("Patient reports" not in o for o in summary["observations"])
-    assert "एआय" in summary["ai_disclaimer"] or "एआई" in summary["ai_disclaimer"] or "निर्मित" in summary["ai_disclaimer"]
+    disc = summary["ai_disclaimer"]
+    assert "निर्मित" in disc or "एआय" in disc or "एआई" in disc
 
 
 def test_hindi_summary_localizes_all_patient_fields():
