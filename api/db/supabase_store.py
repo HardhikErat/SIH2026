@@ -159,8 +159,27 @@ class SupabaseStore:
 
     def create_intake(self, row: dict) -> dict:
         payload = {k: v for k, v in row.items() if k in INTAKE_COLUMNS and v is not None}
-        res = self.client.table("intakes").insert(payload).execute()
-        return res.data[0]
+        # Optional / newer columns — drop on schema mismatch so submit still works
+        optional = ("consultation_summary_en", "camp_id", "turn_history", "language", "aadhaar_hash", "aadhaar_last4")
+        try:
+            res = self.client.table("intakes").insert(payload).execute()
+            return res.data[0]
+        except Exception as first_err:  # noqa: BLE001
+            trimmed = dict(payload)
+            dropped: list[str] = []
+            for key in optional:
+                if key in trimmed:
+                    trimmed.pop(key, None)
+                    dropped.append(key)
+            if not dropped:
+                raise first_err
+            try:
+                res = self.client.table("intakes").insert(trimmed).execute()
+                return res.data[0]
+            except Exception as second_err:  # noqa: BLE001
+                raise RuntimeError(
+                    f"intake insert failed after dropping {dropped}: {second_err}"
+                ) from second_err
 
     def get_intake(self, intake_id: str) -> dict | None:
         res = self.client.table("intakes").select("*").eq("id", intake_id).limit(1).execute()

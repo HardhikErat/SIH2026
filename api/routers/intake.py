@@ -121,33 +121,51 @@ def confirm_intake(session_id: str, body: ConfirmBody, principal: dict = Depends
             aadhaar_last4=last4,
         )
 
-    intake = store.create_intake(
-        {
-            "session_id": session_id,
-            "patient_id": session["patient_id"],
-            "aadhaar_hash": hashed,
-            "aadhaar_last4": last4,
-            "chief_complaint": fields.chief_complaint,
-            "duration": fields.duration,
-            "symptoms": [s.model_dump() for s in fields.symptoms],
-            "medical_history": fields.medical_history,
-            "medications": fields.medications,
-            "allergies": fields.allergies,
-            "missing_information": rules.missing_fields,
-            "contradictions": (
-                [c.model_dump() for c in rules.contradictions]
-                + list(session.get("contradictions") or [])
-            ),
-            "priority_flag": rules.priority_flag.value,
-            "ai_summary": ai_summary,
-            "consultation_summary": consultation_summary,
-            "consultation_summary_en": consultation_summary_en,
-            "turn_history": list(session.get("turn_history") or []),
-            "language": session.get("language") or "en",
-            "status": IntakeStatus.AI_GENERATED.value,
-            "structured_fields": fields.model_dump(),
-        }
-    )
+    # Normalize JSON-ish fields for PostgREST / jsonb columns
+    meds = fields.medications
+    if meds == "unknown":
+        meds = None
+    elif meds == "none":
+        meds = []
+    history = fields.medical_history
+    if history == "unknown":
+        history = []
+
+    try:
+        intake = store.create_intake(
+            {
+                "session_id": session_id,
+                "patient_id": session["patient_id"],
+                "aadhaar_hash": hashed,
+                "aadhaar_last4": last4,
+                "chief_complaint": fields.chief_complaint,
+                "duration": fields.duration,
+                "symptoms": [s.model_dump() for s in fields.symptoms],
+                "medical_history": history,
+                "medications": meds,
+                "allergies": fields.allergies if fields.allergies not in (None,) else "unknown",
+                "missing_information": rules.missing_fields,
+                "contradictions": (
+                    [c.model_dump() for c in rules.contradictions]
+                    + list(session.get("contradictions") or [])
+                ),
+                "priority_flag": rules.priority_flag.value,
+                "ai_summary": ai_summary,
+                "consultation_summary": consultation_summary,
+                "consultation_summary_en": consultation_summary_en,
+                "turn_history": list(session.get("turn_history") or []),
+                "language": session.get("language") or "en",
+                "status": IntakeStatus.AI_GENERATED.value,
+                "structured_fields": fields.model_dump(),
+            }
+        )
+    except Exception as exc:  # noqa: BLE001
+        raise ApiException(
+            500,
+            "INTAKE_PERSIST_FAILED",
+            "Could not save your intake. Please try again.",
+            details={"reason": str(exc)[:500]},
+        ) from exc
     session["status"] = SessionStatus.SUBMITTED.value
     session["submitted_at"] = datetime.now(UTC).isoformat()
     store.save_session(session)
@@ -159,12 +177,15 @@ def confirm_intake(session_id: str, body: ConfirmBody, principal: dict = Depends
             duration = (datetime.now(UTC) - start_dt).total_seconds()
         except ValueError:
             duration = None
-    store.upsert_session_metrics(
-        session_id,
-        duration_seconds=duration,
-        question_count=session.get("question_count") or 0,
-        completeness_pct=_completeness(fields, rules.missing_fields),
-    )
+    try:
+        store.upsert_session_metrics(
+            session_id,
+            duration_seconds=duration,
+            question_count=session.get("question_count") or 0,
+            completeness_pct=_completeness(fields, rules.missing_fields),
+        )
+    except Exception:  # noqa: BLE001 — metrics must not block patient submit
+        pass
     return {
         "intake_id": intake["id"],
         "status": intake["status"],
