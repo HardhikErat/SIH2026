@@ -13,13 +13,13 @@ function base(size: number) {
 
 const airaLogo = require('../../assets/images/aira-logo.png');
 
-/** Aira brand mark — robot-face logo */
+/** Aira brand mark — official logo tile */
 export function BrandMark({ size = 32 }: { size?: number }) {
   return (
     <Image
       source={airaLogo}
       accessibilityLabel="Aira"
-      style={[styles.brandMark, { width: size, height: size, borderRadius: Math.round(size * 0.18) }]}
+      style={[styles.brandMark, { width: size, height: size }]}
     />
   );
 }

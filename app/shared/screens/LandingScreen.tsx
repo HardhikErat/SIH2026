@@ -14,7 +14,7 @@ export default function LandingScreen() {
     <Screen wide contentStyle={styles.content} style={styles.screen}>
       <View style={styles.hero}>
         <View style={styles.brandRow}>
-          <BrandMark size={36} />
+          <BrandMark size={44} />
           <Text style={styles.brandName}>Aira</Text>
           <StatusPill label="NABH-aligned workflow · Camp intake live" tone="ok" />
         </View>

@@ -308,7 +308,7 @@ export default function LandingScreen() {
         <div style={footerInner}>
           <div>
             <div style={footerBrandRow}>
-              <BrandMark size={28} />
+              <BrandMark size={40} />
               <div style={footerLogo}>Aira</div>
             </div>
             <p style={footerTag}>Pre-consultation · Multilingual · Doctor-verified</p>
@@ -330,7 +330,7 @@ function SiteNav() {
     >
       <div style={navInner}>
         <div style={navBrand}>
-          <BrandMark size={28} />
+          <BrandMark size={42} />
           <span style={navName}>Aira</span>
         </div>
         <nav className="landing-nav-links" style={navLinks}>
@@ -695,17 +695,17 @@ const navInner: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
   gap: 28,
-  padding: '10px 22px',
+  padding: '8px 20px',
   borderRadius: 999,
   background: colors.white,
   boxShadow: '0 8px 28px rgba(6,32,53,0.16)',
   pointerEvents: 'auto',
 };
 
-const navBrand: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10 };
+const navBrand: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 12 };
 const navName: React.CSSProperties = {
   fontFamily: fonts.uiSemiBold,
-  fontSize: 16,
+  fontSize: 18,
   color: colors.ink,
 };
 const navLinks: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 24 };

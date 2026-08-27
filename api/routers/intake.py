@@ -92,6 +92,11 @@ def confirm_intake(session_id: str, body: ConfirmBody, principal: dict = Depends
             except Exception:  # noqa: BLE001
                 consultation_summary_en = consultation_summary if lang_code == "en" else None
 
+    if consultation_summary:
+        session["consultation_summary"] = consultation_summary
+    if consultation_summary_en:
+        session["consultation_summary_en"] = consultation_summary_en
+
     patient = store.get_patient(session["patient_id"]) or {}
     hashed = session.get("aadhaar_hash") or patient.get("aadhaar_hash")
     last4 = fields.aadhaar_last4 or patient.get("aadhaar_last4")
