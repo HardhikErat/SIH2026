@@ -20,60 +20,85 @@ logger = logging.getLogger(__name__)
 
 EXTRACTION_SCHEMA = ExtractionDelta.model_json_schema()
 
-SYSTEM_PROMPT = """You are a context-aware clinical intake documentation assistant.
-You extract structured information from what a patient says. You do NOT diagnose, do NOT
-suggest treatment, do NOT express clinical opinions. You never assign priority, urgency,
-or triage flags.
+SYSTEM_PROMPT = """You are an expert multilingual clinical intake EXTRACTOR for rural India camps.
+You convert what a patient said into structured JSON ONLY. You do NOT diagnose, prescribe,
+suggest treatment, or assign urgency/triage.
 
-Output contract: emit ONLY valid JSON matching the extraction schema. No prose.
+OUTPUT: valid JSON object only. No markdown. No prose outside JSON.
 
-Context rules (critical):
-1) Read collected_fields and recent_turns carefully. Never invent facts the patient did not state.
-2) Extract EVERY fact in the latest utterance — patients often pack multiple answers in one message.
-3) If the patient corrects earlier information (e.g. "actually 5 days"), return the corrected value.
-4) Understand Hindi, Hinglish, and English variants: "4 din se", "kal se", "yesterday se",
-   "bimaar", "bukhar", "for the past week", "since Monday".
-5) Short answers like "yes", "no", "4 din", "kal se" still count — map them to the pending field
-   when recent_turns show what was asked.
-6) Do not omit duration when the patient already said how long they have been sick.
-7) Map symptoms to symptoms[] AND set matching clinical flags (fever/headache/etc.) when stated.
+========================
+PENDING QUESTION (critical)
+========================
+The user JSON includes pending_field (and sometimes pending_hint). That is the question
+the assistant JUST asked. Map short answers to THAT field:
+- pending_field=duration + patient says "2" / "दो" / "चार" / "4" / "चार दिन" → duration_days + duration
+- pending_field=severity + "tez" / "mild" / "गंभीर" → severity
+- pending_field=chief_complaint + any illness word → chief_complaint (never leave empty)
+- pending_field=medications + "no" / "नहीं" → medications:"none", takes_medication:"false"
+- pending_field=allergies + "no" → allergies:"none", has_allergy:"false"
 
-If information is not stated, do not guess. Omit the field or mark it `unknown`.
-Never infer a negative (e.g. 'no allergies') unless the patient explicitly said so.
-Clinical yes/no fields must be the strings "true", "false", or "unknown" — never booleans.
+========================
+ASR / SPELLING TOLERANCE (critical)
+========================
+Voice-to-text is noisy. Treat these as FEVER (SYM_FEVER) when they are the main token:
+बोकार, बुकार, बूकर, बू कर, बु कर, बुखर, भुखार, bokar, bukar, bukaar, bukhaar, bukhar, बुखार, fever, ताप.
+Also fix: बिबार/बिमर→बीमार, देन→दिन, तकलिफ→तकलीफ.
+If the utterance is clearly a mangled symptom word, still extract the intended concept.
 
-Map symptoms to canonical concept IDs when possible (SYM_FEVER, SYM_COUGH, SYM_HEADACHE,
-SYM_CHEST_PAIN, SYM_BREATHING, SYM_VOMITING). complaint_category is one of:
-fever, chest_pain, headache, cough, default.
+========================
+SYMPTOM COVERAGE
+========================
+Use concept IDs when possible:
+SYM_FEVER, SYM_COUGH, SYM_COLD, SYM_SORE_THROAT, SYM_HEADACHE, SYM_CHEST_PAIN, SYM_BREATHING,
+SYM_VOMITING, SYM_BODY_PAIN, SYM_BACK_PAIN, SYM_STOMACH_PAIN, SYM_DIARRHEA, SYM_DIZZINESS,
+SYM_RASH, SYM_FATIGUE, SYM_OTHER.
+complaint_category ∈ fever | chest_pain | headache | cough | default.
+Examples: "back pain"/"पीठ दर्द"/"kamar dard" → SYM_BACK_PAIN;
+"stomach pain"/"पेट दर्द" → SYM_STOMACH_PAIN;
+vague "बीमार"/"sick"/"takleef" without a named symptom → SYM_OTHER (still set chief_complaint).
 
-Return only the delta — fields newly stated or updated this turn.
+========================
+EXTRACTION RULES
+========================
+1) Never invent facts the patient did not state. Use collected_fields + recent_turns as context.
+2) Extract EVERY fact in the latest utterance (complaint + duration + severity + meds can co-occur).
+3) Corrections win (e.g. "actually 5 days").
+4) Clinical yes/no fields must be strings "true"|"false"|"unknown" — never booleans.
+5) If not stated, omit the field or use "unknown". Never invent "no allergies" unless said.
+6) Always set chief_complaint when the patient describes ANY health problem.
+7) Prefer Hindi/Marathi/Hinglish understanding equally with English.
 
 {concepts}
 
 Few-shot examples:
-1) Patient: "I have had bukhar for 3 days"
+1) pending_field=chief_complaint, utterance="बोकार"
+   {{"chief_complaint":"SYM_FEVER","complaint_category":"fever","fever":"true"}}
+2) pending_field=chief_complaint, utterance="बुकार"
+   {{"chief_complaint":"SYM_FEVER","complaint_category":"fever","fever":"true"}}
+3) pending_field=duration, utterance="चार"
+   {{"duration":"4 days","duration_days":4}}
+4) pending_field=duration, utterance="दो"
+   {{"duration":"2 days","duration_days":2}}
+5) pending_field=duration, utterance="2"
+   {{"duration":"2 days","duration_days":2}}
+6) utterance="back pain for 2 days"
+   {{"chief_complaint":"SYM_BACK_PAIN","complaint_category":"default","duration":"2 days","duration_days":2,
+     "symptoms":[{{"concept_id":"SYM_BACK_PAIN","raw_term":"back pain"}}]}}
+7) utterance="I have had bukhar for 3 days"
    {{"chief_complaint":"SYM_FEVER","complaint_category":"fever","fever":"true","duration":"3 days","duration_days":3}}
-2) Patient: "4 din se bimaar hu"
-   {{"duration":"4 days","duration_days":4,"chief_complaint":"SYM_FEVER","complaint_category":"default"}}
-3) Patient: "I've been sick for 4 days and I have a headache since yesterday."
-   {{"duration":"4 days","duration_days":4,"chief_complaint":"SYM_HEADACHE",
-     "complaint_category":"headache","headache":"true",
-     "symptoms":[{{"concept_id":"SYM_HEADACHE","duration":"1 day"}}]}}
-4) Patient: "sine mein dard, saans lene mein takleef"
+8) utterance="4 din se bimaar hu"
+   {{"duration":"4 days","duration_days":4,"chief_complaint":"SYM_OTHER","complaint_category":"default",
+     "symptoms":[{{"concept_id":"SYM_OTHER","raw_term":"bimaar"}}]}}
+9) utterance="sine mein dard, saans lene mein takleef"
    {{"chief_complaint":"SYM_CHEST_PAIN","complaint_category":"chest_pain","chest_pain":"true","breathing_difficulty":"true"}}
-5) Patient: "fever and cough, mild headache"
-   {{"chief_complaint":"SYM_FEVER","complaint_category":"fever","fever":"true","associated_symptoms_checked":"true","symptoms":[{{"concept_id":"SYM_COUGH","severity":"unknown"}},{{"concept_id":"SYM_HEADACHE","severity":"mild"}}]}}
-6) Earlier duration 4 days; now "Actually, it's been 5 days."
-   {{"duration":"5 days","duration_days":5}}
-7) Patient: "kal se headache hai"
-   {{"chief_complaint":"SYM_HEADACHE","complaint_category":"headache",
-     "headache":"true","duration":"1 day","duration_days":1}}
-8) Earlier medications none; now "I took my BP tablet"
-   {{"medications":["BP tablet"],"takes_medication":"true"}}
-9) Patient: "no medicines"
+10) utterance="fever and cough, mild headache"
+   {{"chief_complaint":"SYM_FEVER","complaint_category":"fever","fever":"true","associated_symptoms_checked":"true",
+     "symptoms":[{{"concept_id":"SYM_COUGH"}},{{"concept_id":"SYM_HEADACHE","severity":"mild"}}]}}
+11) utterance="no medicines"
    {{"medications":"none","takes_medication":"false"}}
-10) Patient: "I don't know about allergies"
-   {{"allergies":"unknown","has_allergy":"unknown"}}
+12) utterance="पीठ दर्द दो दिन से"
+   {{"chief_complaint":"SYM_BACK_PAIN","complaint_category":"default","duration":"2 days","duration_days":2,
+     "symptoms":[{{"concept_id":"SYM_BACK_PAIN","raw_term":"पीठ दर्द"}}]}}
 """
 
 SUMMARY_PROMPT = """Given this structured intake JSON, write a 3-5 sentence factual
@@ -220,14 +245,21 @@ class KeywordStubProvider:
             return _stub_summary(user)
         utterance = user
         collected: dict[str, Any] = {}
+        pending_field = None
         try:
             payload = json.loads(user)
             if isinstance(payload, dict) and payload.get("patient_utterance"):
                 utterance = str(payload["patient_utterance"])
                 collected = payload.get("collected_fields") or {}
+                pending_field = payload.get("pending_field")
+                if pending_field in (None, "", "NONE"):
+                    pending_field = None
         except json.JSONDecodeError:
             pass
-        text = utterance.casefold()
+        # Apply ASR normalization used by enrichment so stub matches live path
+        from core.utterance_enrichment import enrich_utterance_delta, normalize_patient_text
+
+        text = normalize_patient_text(utterance).casefold()
         delta: dict[str, Any] = {}
 
         sick_like = any(
@@ -277,21 +309,33 @@ class KeywordStubProvider:
             delta.setdefault("symptoms", []).append({"concept_id": "SYM_COUGH", "severity": "unknown"})
             if "chief_complaint" not in delta:
                 delta.update({"chief_complaint": "SYM_COUGH", "complaint_category": "cough"})
-        if any(w in text for w in ("body pain", "badan dard", "बदन दर्द", "angdukh", "body ache")):
+        if any(w in text for w in ("back pain", "backache", "पीठ दर्द", "kamar dard", "पाठदुखी")):
+            delta.setdefault("symptoms", []).append({"concept_id": "SYM_BACK_PAIN", "severity": "unknown"})
+            if "chief_complaint" not in delta:
+                delta.update({"chief_complaint": "SYM_BACK_PAIN", "complaint_category": "default"})
+        if any(w in text for w in ("stomach pain", "पेट दर्द", "pet dard", "abdominal")):
+            delta.setdefault("symptoms", []).append({"concept_id": "SYM_STOMACH_PAIN", "severity": "unknown"})
+            if "chief_complaint" not in delta:
+                delta.update({"chief_complaint": "SYM_STOMACH_PAIN", "complaint_category": "default"})
+        if any(w in text for w in ("body pain", "badan dard", "बदन दर्द", "angdukh", "body ache", "शरीर में दर्द")):
             delta.setdefault("symptoms", []).append({"concept_id": "SYM_BODY_PAIN", "severity": "unknown"})
+            if "chief_complaint" not in delta:
+                delta.update({"chief_complaint": "SYM_BODY_PAIN", "complaint_category": "default"})
         if any(w in text for w in ("vomit", "ulti", "उल्टी")):
             delta["vomiting"] = "true"
 
-        # Generic illness without a named symptom — keep as default complaint context
         if sick_like and "chief_complaint" not in delta:
+            delta["chief_complaint"] = "SYM_OTHER"
             delta["complaint_category"] = delta.get("complaint_category") or "default"
+            delta.setdefault("symptoms", []).append(
+                {"concept_id": "SYM_OTHER", "raw_term": utterance[:80], "severity": "unknown"}
+            )
 
         # Duration: "4 days", "4 din", "kal se", "yesterday", "a week", bare corrections
         days = _stub_parse_duration_days(text)
         if days is not None:
             delta["duration"] = f"{days} days"
             delta["duration_days"] = days
-            # Per-symptom duration when headache mentioned with a shorter span
             if "headache" in text or "sir dard" in text or "सिर दर्द" in text:
                 if "yesterday" in text or "kal se" in text or "कल से" in text:
                     for item in delta.get("symptoms") or []:
@@ -320,7 +364,6 @@ class KeywordStubProvider:
                 delta["allergies"] = "unknown"
                 delta["has_allergy"] = "unknown"
 
-        # Multiple symptoms alongside fever ⇒ associated symptoms already provided
         has_assoc = any(
             w in text for w in ("cough", "headache", "body pain", "khansi", "sir dard", "बदन")
         )
@@ -332,8 +375,14 @@ class KeywordStubProvider:
         ):
             delta["associated_symptoms_checked"] = "true"
 
+        # Let enrichment fill bare duration numbers / ASR fever when pending
+        delta = enrich_utterance_delta(
+            utterance,
+            delta,
+            pending_field=pending_field,
+            collected=CollectedFields.model_validate(collected) if collected else None,
+        )
         return json.dumps(delta)
-
 
 def _stub_parse_duration_days(text: str) -> int | None:
     """Parse duration from English / Hinglish / Hindi fragments."""
@@ -457,6 +506,9 @@ class LLMGateway:
         collected: CollectedFields,
         language: str,
         recent_turns: list[str] | None = None,
+        *,
+        pending_field: str | None = None,
+        pending_hint: str | None = None,
     ) -> ExtractionDelta:
         system = SYSTEM_PROMPT.format(concepts=canonical_concept_prompt_block())
         user = json.dumps(
@@ -465,6 +517,8 @@ class LLMGateway:
                 "collected_fields": collected.model_dump(),
                 "recent_turns": recent_turns or [],
                 "patient_utterance": utterance,
+                "pending_field": pending_field or "NONE",
+                "pending_hint": pending_hint or "",
             },
             ensure_ascii=False,
         )
@@ -477,7 +531,6 @@ class LLMGateway:
             raw2 = self._complete_with_failover(system, retry_user, json_mode=True)
             data = _extract_json(raw2)
             return ExtractionDelta.model_validate(data)
-
     def summarize_clinical(self, fields: CollectedFields) -> str:
         raw = self._complete_with_failover(
             SUMMARY_PROMPT, json.dumps(fields.model_dump(), ensure_ascii=False), json_mode=False

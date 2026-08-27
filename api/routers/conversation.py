@@ -129,8 +129,27 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
     fields = CollectedFields.model_validate(session.get("collected_fields") or {})
     asked_questions: list[str] = list(session.get("asked_questions") or [])
     recent_turns = recent_patient_utterances(history)
+    pending = session.get("pending_questions") or []
+    pending_field = None
+    pending_hint = None
+    if pending and isinstance(pending[0], dict):
+        pending_field = pending[0].get("field")
+        # Prefer localized question text when available
+        qt = pending[0].get("question_text") or {}
+        if isinstance(qt, dict):
+            lang0 = (language or "en").split("-")[0]
+            pending_hint = qt.get(lang0) or qt.get("en") or pending[0].get("question_text_key")
+        else:
+            pending_hint = pending[0].get("question_text_key")
     try:
-        delta_model = gateway.extract(utterance, fields, language, recent_turns=recent_turns)
+        delta_model = gateway.extract(
+            utterance,
+            fields,
+            language,
+            recent_turns=recent_turns,
+            pending_field=pending_field,
+            pending_hint=pending_hint,
+        )
     except Exception as exc:  # noqa: BLE001
         raise ApiException(
             502,
@@ -140,10 +159,6 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
         ) from exc
 
     delta = delta_model.model_dump(exclude_none=True)
-    pending = session.get("pending_questions") or []
-    pending_field = None
-    if pending and isinstance(pending[0], dict):
-        pending_field = pending[0].get("field")
     delta = enrich_utterance_delta(
         utterance,
         delta,
@@ -326,11 +341,9 @@ def _sanitize_reply(ai_text: str, fields: CollectedFields, next_field: str | Non
     text = (ai_text or "").strip()
     if not text:
         return text
-    # Never show leak-filter placeholders to patients
     text = text.replace("[removed]", "")
     text = re.sub(r"\s{2,}", " ", text).strip()
     lower = text.casefold()
-    # Severity already known — remove the classic severity questionnaire sentence
     if fields.is_collected("severity") and next_field != "severity":
         patterns = [
             r"\s*is the pain or discomfort mild, moderate, or severe\??",
@@ -342,15 +355,28 @@ def _sanitize_reply(ai_text: str, fields: CollectedFields, next_field: str | Non
         text = re.sub(r"\s{2,}", " ", text).strip(" .")
         if text and not text.endswith((".", "?", "!", "।")):
             text += "."
-    # Duration already known
     if fields.is_collected("duration") and next_field != "duration":
-        if "how many days" in lower:
-            text = re.sub(
-                r"\s*how many days has this been going on\??",
-                "",
-                text,
-                flags=re.I,
-            ).strip()
+        patterns = [
+            r"\s*how many days has this been going on\??",
+            r"\s*यह कितने दिनों से है\??",
+            r"\s*हे किती दिवसांपासून आहे\??",
+        ]
+        for pat in patterns:
+            text = re.sub(pat, "", text, flags=re.I).strip()
+        text = re.sub(r"\s{2,}", " ", text).strip(" .")
+    if fields.is_collected("chief_complaint") and next_field != "chief_complaint":
+        patterns = [
+            r"\s*what is the main problem you came for today\??",
+            r"\s*आज आप किस तकलीफ के लिए आए हैं\??",
+            r"\s*आज तुम्ही कोणत्या त्रासासाठी आला आहात\??",
+            r"\s*please tell me a little more about what is bothering you\.?",
+            r"\s*कृपया बताइए और क्या तकलीफ है।?",
+        ]
+        for pat in patterns:
+            text = re.sub(pat, "", text, flags=re.I).strip()
+        text = re.sub(r"\s{2,}", " ", text).strip(" .")
+        if text and not text.endswith((".", "?", "!", "।")):
+            text += "."
     return text or ai_text
 
 

@@ -291,8 +291,8 @@ def select_next_question(
             )
         if fields.is_collected("chief_complaint") and not missing_fields:
             return None
-        # Avoid looping the same generic prompt after it was already asked
-        if any(qid.startswith("Q_GENERIC:") for qid in asked):
+        # Avoid looping the same generic / complaint prompt after it was already asked
+        if any(qid.startswith("Q_GENERIC:") or qid.startswith("Q_COMPLAINT:") for qid in asked):
             return None
         return GENERIC_FOLLOWUP
     return ranked[0]

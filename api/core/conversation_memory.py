@@ -172,14 +172,18 @@ def build_memory(
 def should_ask_question(
     question: Question,
     fields: CollectedFields,
-    _asked_questions: list[str],
+    asked_questions: list[str],
 ) -> bool:
-    """Skip only when the answer (or a semantic equivalent) is already known.
+    """Skip when the answer is known OR this exact question was already asked.
 
-    Previously asked-but-unanswered questions may be asked again so the intake
-    can recover; duplicate prevention is answer-driven, not prompt-count-driven.
+    Re-asking the same prompt when extraction failed feels broken. Recovery is
+    handled by free-text / ASR enrichment on the pending field instead.
     """
-    return not is_field_answered(fields, question.field)
+    if is_field_answered(fields, question.field):
+        return False
+    if was_question_asked(asked_questions, question):
+        return False
+    return True
 
 
 def select_unasked_candidates(

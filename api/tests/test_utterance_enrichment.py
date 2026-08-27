@@ -116,3 +116,51 @@ def test_llm_missed_severity_still_enriched():
         collected=_patient(severity="unknown"),
     )
     assert delta.get("severity") == "mild"
+
+
+def test_asr_bokar_maps_to_fever():
+    for utter in ("बोकार", "बुकार", "बू कर", "bukar"):
+        delta = enrich_utterance_delta(utter, {}, pending_field="chief_complaint")
+        assert delta["chief_complaint"] == "SYM_FEVER", utter
+        assert delta.get("fever") == "true"
+
+
+def test_bare_hindi_number_sets_duration_when_pending():
+    assert enrich_utterance_delta("चार", {}, pending_field="duration")["duration_days"] == 4
+    assert enrich_utterance_delta("दो", {}, pending_field="duration")["duration_days"] == 2
+    assert enrich_utterance_delta("2", {}, pending_field="duration")["duration_days"] == 2
+
+
+def test_back_pain_sets_chief_complaint():
+    delta = enrich_utterance_delta("I have back pain for 2 days", {}, pending_field="chief_complaint")
+    assert delta["chief_complaint"] == "SYM_BACK_PAIN"
+    assert delta.get("duration_days") == 2
+
+
+def test_complaint_not_reasked_after_asked():
+    from core.conversation_memory import should_ask_question
+    from core.question_engine import QUESTION_BANK
+    from core.schema import CollectedFields
+
+    fields = CollectedFields(display_name="R", age=20, gender="male", aadhaar_last4="9012")
+    q = next(x for x in QUESTION_BANK if x.id == "Q_COMPLAINT")
+    assert should_ask_question(q, fields, []) is True
+    assert should_ask_question(q, fields, ["Q_COMPLAINT:chief_complaint"]) is False
+
+
+def test_duration_not_reasked_after_asked():
+    from core.conversation_memory import should_ask_question
+    from core.question_engine import QUESTION_BANK
+    from core.schema import CollectedFields
+
+    fields = CollectedFields(
+        display_name="R",
+        age=20,
+        gender="male",
+        aadhaar_last4="9012",
+        chief_complaint="SYM_FEVER",
+        complaint_category="fever",
+        fever="true",
+    )
+    q = next(x for x in QUESTION_BANK if x.id == "Q_DURATION")
+    assert should_ask_question(q, fields, ["Q_DURATION:duration"]) is False

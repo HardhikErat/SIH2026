@@ -17,13 +17,21 @@ class ClinicalConcept:
 CONCEPTS: list[ClinicalConcept] = [
     ClinicalConcept("SYM_FEVER", "fever", "symptom"),
     ClinicalConcept("SYM_COUGH", "cough", "symptom"),
+    ClinicalConcept("SYM_COLD", "cold / runny nose", "symptom"),
+    ClinicalConcept("SYM_SORE_THROAT", "sore throat", "symptom"),
     ClinicalConcept("SYM_HEADACHE", "headache", "symptom"),
     ClinicalConcept("SYM_CHEST_PAIN", "chest pain", "symptom"),
     ClinicalConcept("SYM_BREATHING", "breathing difficulty", "symptom"),
     ClinicalConcept("SYM_VOMITING", "vomiting", "symptom"),
     ClinicalConcept("SYM_BODY_PAIN", "body pain", "symptom"),
+    ClinicalConcept("SYM_BACK_PAIN", "back pain", "symptom"),
+    ClinicalConcept("SYM_STOMACH_PAIN", "stomach pain", "symptom"),
     ClinicalConcept("SYM_DIARRHEA", "diarrhea", "symptom"),
     ClinicalConcept("SYM_ABDOMINAL_PAIN", "abdominal pain", "symptom"),
+    ClinicalConcept("SYM_DIZZINESS", "dizziness", "symptom"),
+    ClinicalConcept("SYM_RASH", "rash", "symptom"),
+    ClinicalConcept("SYM_FATIGUE", "fatigue", "symptom"),
+    ClinicalConcept("SYM_OTHER", "other symptom", "symptom"),
 ]
 
 # language, dialect, synonym → concept_id
@@ -34,6 +42,8 @@ SYNONYMS: list[tuple[str, str | None, str, str]] = [
     ("hi", None, "bukhar", "SYM_FEVER"),
     ("hi", None, "bukhaar", "SYM_FEVER"),
     ("hi", None, "बुखार", "SYM_FEVER"),
+    ("hi", None, "बोकार", "SYM_FEVER"),
+    ("hi", None, "बुकार", "SYM_FEVER"),
     ("hi", None, "jvara", "SYM_FEVER"),
     ("hi", None, "tap", "SYM_FEVER"),
     ("mr", None, "ताप", "SYM_FEVER"),
@@ -43,6 +53,12 @@ SYNONYMS: list[tuple[str, str | None, str, str]] = [
     ("hi", None, "khansi", "SYM_COUGH"),
     ("hi", None, "खांसी", "SYM_COUGH"),
     ("mr", None, "खोकला", "SYM_COUGH"),
+    ("en", None, "cold", "SYM_COLD"),
+    ("en", None, "runny nose", "SYM_COLD"),
+    ("hi", None, "सर्दी", "SYM_COLD"),
+    ("en", None, "sore throat", "SYM_SORE_THROAT"),
+    ("hi", None, "गले में खराश", "SYM_SORE_THROAT"),
+    ("mr", None, "घसा दुखणे", "SYM_SORE_THROAT"),
     ("en", None, "headache", "SYM_HEADACHE"),
     ("en", None, "head pain", "SYM_HEADACHE"),
     ("hi", None, "sir dard", "SYM_HEADACHE"),
@@ -62,6 +78,31 @@ SYNONYMS: list[tuple[str, str | None, str, str]] = [
     ("en", None, "vomiting", "SYM_VOMITING"),
     ("hi", None, "ulti", "SYM_VOMITING"),
     ("hi", None, "उल्टी", "SYM_VOMITING"),
+    ("en", None, "body pain", "SYM_BODY_PAIN"),
+    ("en", None, "body ache", "SYM_BODY_PAIN"),
+    ("hi", None, "badan dard", "SYM_BODY_PAIN"),
+    ("hi", None, "बदन दर्द", "SYM_BODY_PAIN"),
+    ("en", None, "back pain", "SYM_BACK_PAIN"),
+    ("en", None, "backache", "SYM_BACK_PAIN"),
+    ("hi", None, "kamar dard", "SYM_BACK_PAIN"),
+    ("hi", None, "पीठ दर्द", "SYM_BACK_PAIN"),
+    ("mr", None, "पाठदुखी", "SYM_BACK_PAIN"),
+    ("en", None, "stomach pain", "SYM_STOMACH_PAIN"),
+    ("en", None, "abdominal pain", "SYM_STOMACH_PAIN"),
+    ("hi", None, "pet dard", "SYM_STOMACH_PAIN"),
+    ("hi", None, "पेट दर्द", "SYM_STOMACH_PAIN"),
+    ("en", None, "diarrhea", "SYM_DIARRHEA"),
+    ("hi", None, "dast", "SYM_DIARRHEA"),
+    ("hi", None, "दस्त", "SYM_DIARRHEA"),
+    ("en", None, "dizziness", "SYM_DIZZINESS"),
+    ("hi", None, "चक्कर", "SYM_DIZZINESS"),
+    ("en", None, "rash", "SYM_RASH"),
+    ("en", None, "fatigue", "SYM_FATIGUE"),
+    ("en", None, "sick", "SYM_OTHER"),
+    ("en", None, "unwell", "SYM_OTHER"),
+    ("hi", None, "bimaar", "SYM_OTHER"),
+    ("hi", None, "बीमार", "SYM_OTHER"),
+    ("hi", None, "बीमारी", "SYM_OTHER"),
 ]
 
 
@@ -123,5 +164,5 @@ def normalize_fields(fields: CollectedFields) -> tuple[CollectedFields, list[str
 
 def canonical_concept_prompt_block() -> str:
     lines = [f"- {c.id}: {c.canonical_name} ({c.category})" for c in CONCEPTS]
-    examples = ", ".join(f"{syn}→{cid}" for _l, _d, syn, cid in SYNONYMS[:12])
+    examples = ", ".join(f"{syn}→{cid}" for _l, _d, syn, cid in SYNONYMS[:20])
     return "Canonical concepts:\n" + "\n".join(lines) + "\nKnown synonyms: " + examples

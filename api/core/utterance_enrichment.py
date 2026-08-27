@@ -1,7 +1,7 @@
 """Deterministic utterance enrichment — catches clear answers the LLM may miss.
 
 Runs after LLM extraction and before merge/question selection so short replies
-like "mild", "the pain is mild", "no", "nothing" always update structured state.
+like "mild", "चार", "2", ASR-garbled "बोकार"→fever always update structured state.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ _SEVERITY_MAP = {
     "तीव्र": "severe",
 }
 
-_YES_RE = re.compile(r"^\s*(yes|y|haan|han|ha|हाँ|होय|ji)\b", re.I)
+_YES_RE = re.compile(r"^\s*(yes|y|haan|han|ha|हाँ|हां|होय|ji)\b", re.I)
 
 _COMMON_MEDS = (
     "paracetamol",
@@ -62,6 +62,154 @@ _DECLINE_NAME_RE = re.compile(
     re.I,
 )
 
+# ASR / typing variants → canonical token (applied before matching)
+_ASR_FIXES: list[tuple[str, str]] = [
+    # fever / बुखार (very common voice errors)
+    ("बोकार", "बुखार"),
+    ("बुकार", "बुखार"),
+    ("बूकर", "बुखार"),
+    ("बू कर", "बुखार"),
+    ("बु कर", "बुखार"),
+    ("बुखर", "बुखार"),
+    ("भुखार", "बुखार"),
+    ("बखार", "बुखार"),
+    ("bokar", "bukhar"),
+    ("bukar", "bukhar"),
+    ("bukaar", "bukhar"),
+    ("boo kar", "bukhar"),
+    ("bu kar", "bukhar"),
+    ("bukhaar", "bukhar"),
+    # sick / बीमार
+    ("बिबार", "बीमार"),
+    ("बिमर", "बीमार"),
+    ("बिमार", "बीमार"),
+    ("बिमारी", "बीमारी"),
+    ("बिबारी", "बीमारी"),
+    ("bibaar", "bimaar"),
+    ("bibar", "bimaar"),
+    ("bimar", "bimaar"),
+    # duration unit
+    ("तकलिफ", "तकलीफ"),
+    ("तकलिफ़", "तकलीफ"),
+    ("देन", "दिन"),
+    ("दिनो", "दिन"),
+    ("den se", "din se"),
+]
+
+_HINDI_NUM: dict[str, int] = {
+    "एक": 1,
+    "दो": 2,
+    "तीन": 3,
+    "चार": 4,
+    "पाँच": 5,
+    "पांच": 5,
+    "छह": 6,
+    "छे": 6,
+    "सात": 7,
+    "आठ": 8,
+    "नौ": 9,
+    "दस": 10,
+    "बारह": 12,
+    "पंद्रह": 15,
+    "बीस": 20,
+    "ek": 1,
+    "do": 2,
+    "teen": 3,
+    "char": 4,
+    "paanch": 5,
+    "panch": 5,
+    "chhe": 6,
+    "saat": 7,
+    "aath": 8,
+    "nau": 9,
+    "das": 10,
+}
+
+# (phrase, concept_id, complaint_category, optional clinical flag)
+_SYMPTOM_PHRASES: list[tuple[str, str, str, str | None]] = [
+    ("fever", "SYM_FEVER", "fever", "fever"),
+    ("bukhar", "SYM_FEVER", "fever", "fever"),
+    ("बुखार", "SYM_FEVER", "fever", "fever"),
+    ("ताप", "SYM_FEVER", "fever", "fever"),
+    ("back pain", "SYM_BACK_PAIN", "default", None),
+    ("backache", "SYM_BACK_PAIN", "default", None),
+    ("lower back", "SYM_BACK_PAIN", "default", None),
+    ("पीठ दर्द", "SYM_BACK_PAIN", "default", None),
+    ("पीठ में दर्द", "SYM_BACK_PAIN", "default", None),
+    ("kamar dard", "SYM_BACK_PAIN", "default", None),
+    ("kamar mein dard", "SYM_BACK_PAIN", "default", None),
+    ("पाठदुखी", "SYM_BACK_PAIN", "default", None),
+    ("body pain", "SYM_BODY_PAIN", "default", None),
+    ("body ache", "SYM_BODY_PAIN", "default", None),
+    ("badan dard", "SYM_BODY_PAIN", "default", None),
+    ("बदन दर्द", "SYM_BODY_PAIN", "default", None),
+    ("शरीर में दर्द", "SYM_BODY_PAIN", "default", None),
+    ("अंगदुखी", "SYM_BODY_PAIN", "default", None),
+    ("stomach pain", "SYM_STOMACH_PAIN", "default", None),
+    ("abdominal pain", "SYM_STOMACH_PAIN", "default", None),
+    ("पेट दर्द", "SYM_STOMACH_PAIN", "default", None),
+    ("pet dard", "SYM_STOMACH_PAIN", "default", None),
+    ("पोटदुखी", "SYM_STOMACH_PAIN", "default", None),
+    ("headache", "SYM_HEADACHE", "headache", "headache"),
+    ("sir dard", "SYM_HEADACHE", "headache", "headache"),
+    ("सिर दर्द", "SYM_HEADACHE", "headache", "headache"),
+    ("सिरदर्द", "SYM_HEADACHE", "headache", "headache"),
+    ("डोकेदुखी", "SYM_HEADACHE", "headache", "headache"),
+    ("cough", "SYM_COUGH", "cough", None),
+    ("khansi", "SYM_COUGH", "cough", None),
+    ("खांसी", "SYM_COUGH", "cough", None),
+    ("खोकला", "SYM_COUGH", "cough", None),
+    ("chest pain", "SYM_CHEST_PAIN", "chest_pain", "chest_pain"),
+    ("सीने में दर्द", "SYM_CHEST_PAIN", "chest_pain", "chest_pain"),
+    ("sine mein dard", "SYM_CHEST_PAIN", "chest_pain", "chest_pain"),
+    ("छातीत दुखणे", "SYM_CHEST_PAIN", "chest_pain", "chest_pain"),
+    ("vomiting", "SYM_VOMITING", "default", "vomiting"),
+    ("उल्टी", "SYM_VOMITING", "default", "vomiting"),
+    ("ulti", "SYM_VOMITING", "default", "vomiting"),
+    ("उलटी", "SYM_VOMITING", "default", "vomiting"),
+    ("diarrhea", "SYM_DIARRHEA", "default", None),
+    ("dast", "SYM_DIARRHEA", "default", None),
+    ("दस्त", "SYM_DIARRHEA", "default", None),
+    ("जुलाब", "SYM_DIARRHEA", "default", None),
+    ("dizziness", "SYM_DIZZINESS", "default", None),
+    ("चक्कर", "SYM_DIZZINESS", "default", None),
+    ("sore throat", "SYM_SORE_THROAT", "default", None),
+    ("गले में खराश", "SYM_SORE_THROAT", "default", None),
+    ("घसा दुखणे", "SYM_SORE_THROAT", "default", None),
+    ("cold", "SYM_COLD", "default", None),
+    ("सर्दी", "SYM_COLD", "default", None),
+    ("runny nose", "SYM_COLD", "default", None),
+    ("rash", "SYM_RASH", "default", None),
+    ("चकत्ते", "SYM_RASH", "default", None),
+    ("पुरळ", "SYM_RASH", "default", None),
+    ("fatigue", "SYM_FATIGUE", "default", None),
+    ("thakaan", "SYM_FATIGUE", "default", None),
+    ("थकान", "SYM_FATIGUE", "default", None),
+    ("थकवा", "SYM_FATIGUE", "default", None),
+]
+
+_SICK_RE = re.compile(
+    r"("
+    r"\bbimaar\b|\bbimar\b|\bsick\b|\bill\b|\bunwell\b|"
+    r"\bbimari\b|\btakleef\b|\btaklif\b|"
+    r"बीमार|बीमारी|तकलीफ|तबियत"
+    r")",
+    re.I,
+)
+
+
+def normalize_patient_text(utterance: str) -> str:
+    """Fix common ASR/typing misspellings before lexical matching."""
+    text = (utterance or "").strip()
+    if not text:
+        return text
+    out = text
+    for bad, good in _ASR_FIXES:
+        out = re.sub(re.escape(bad), good, out, flags=re.I)
+    # Collapse "बू  कर" style spacing after fixes
+    out = re.sub(r"\s+", " ", out).strip()
+    return out
+
 
 def enrich_utterance_delta(
     utterance: str,
@@ -71,19 +219,22 @@ def enrich_utterance_delta(
     collected: CollectedFields | None = None,
 ) -> dict[str, Any]:
     """Merge high-confidence lexical facts into the extraction delta."""
-    text = (utterance or "").strip()
-    if not text:
+    raw = (utterance or "").strip()
+    if not raw:
         return delta
 
+    text = normalize_patient_text(raw)
     out = dict(delta)
     lower = text.casefold()
 
     sev = _parse_severity(lower)
-    if sev and (pending_field == "severity" or "severity" not in out or out.get("severity") in (None, "unknown")):
-        if pending_field == "severity" or sev:
-            out["severity"] = sev
-
-    if pending_field == "severity" and "severity" not in out and sev:
+    if not sev and re.search(r"(badht|बढ़त|worse|worsening|tez ho|तीव्र हो)", lower):
+        sev = "moderate"
+    if sev and (
+        pending_field == "severity"
+        or out.get("severity") in (None, "unknown")
+        or "severity" not in out
+    ):
         out["severity"] = sev
 
     # --- Medications ---
@@ -96,7 +247,6 @@ def enrich_utterance_delta(
             out["medications"] = "none"
             out["takes_medication"] = "false"
         elif _declined_med_name(lower):
-            # Taking meds (or asked for name) but won't/can't name them
             if (collected and collected.takes_medication == "true") or pending_field == "medications":
                 if re.search(r"\b(yes|taking|le raha|ले रहा)\b", lower) or (
                     collected and collected.takes_medication == "true"
@@ -107,7 +257,6 @@ def enrich_utterance_delta(
                     out["medications"] = "none"
                     out["takes_medication"] = "false"
                 else:
-                    # Pure "don't remember" after name prompt
                     out["takes_medication"] = out.get("takes_medication") or (
                         collected.takes_medication if collected else "true"
                     )
@@ -116,7 +265,6 @@ def enrich_utterance_delta(
                     out["medications"] = "unspecified"
         elif _is_yes(lower) or re.search(r"\b(taking|take|le raha|ले रहा)\s+medicin", lower):
             out["takes_medication"] = "true"
-            # Leave medications unset so the name follow-up can run once
 
     if pending_field in ("allergies", "has_allergy"):
         if _is_no(lower) and "allergies" not in out:
@@ -134,7 +282,6 @@ def enrich_utterance_delta(
         "associated_symptoms_checked",
     ):
         if _is_no(lower) and pending_field not in out:
-            # "no nothing" on associated-symptoms question ⇒ checked, none present
             if pending_field == "associated_symptoms_checked":
                 out["associated_symptoms_checked"] = "true"
             else:
@@ -149,12 +296,47 @@ def enrich_utterance_delta(
         out.setdefault("allergies", "none")
         out.setdefault("has_allergy", "false")
 
-    if pending_field == "duration" and "duration_days" not in out and "duration" not in out:
-        m = re.search(r"(\d+)\s*(?:day|days|din|दिन)?", lower)
-        if m:
-            days = int(m.group(1))
+    # Duration — including bare "2" / "चार" when duration was just asked
+    if "duration_days" not in out and out.get("duration") in (None, "unknown", ""):
+        days = _parse_duration_days(text, pending_field=pending_field)
+        if days is not None:
             out["duration"] = f"{days} days"
             out["duration_days"] = days
+
+    # Symptoms / chief complaint
+    need_complaint = (
+        pending_field == "chief_complaint"
+        or collected is None
+        or not collected.is_collected("chief_complaint")
+    )
+    if need_complaint or "chief_complaint" not in out:
+        matched = _match_symptom(lower, text)
+        if matched:
+            concept_id, category, flag = matched
+            out.setdefault("chief_complaint", concept_id)
+            out.setdefault("complaint_category", category)
+            out.setdefault("symptoms", [])
+            if isinstance(out["symptoms"], list) and not any(
+                isinstance(s, dict) and s.get("concept_id") == concept_id for s in out["symptoms"]
+            ):
+                out["symptoms"].append(
+                    {"concept_id": concept_id, "raw_term": text[:80], "severity": "unknown"}
+                )
+            if flag:
+                out.setdefault(flag, "true")
+        elif need_complaint and _SICK_RE.search(text) and "chief_complaint" not in out:
+            out["chief_complaint"] = "SYM_OTHER"
+            out["complaint_category"] = out.get("complaint_category") or "default"
+            out.setdefault("symptoms", []).append(
+                {"concept_id": "SYM_OTHER", "raw_term": text[:120], "severity": "unknown"}
+            )
+        elif (
+            pending_field == "chief_complaint"
+            and _is_substantive_complaint(text)
+            and "chief_complaint" not in out
+        ):
+            out["chief_complaint"] = text[:160]
+            out["complaint_category"] = out.get("complaint_category") or "default"
 
     if collected is not None and not collected.is_collected("severity") and sev:
         out["severity"] = sev
@@ -179,8 +361,74 @@ def close_medication_name_if_declined(
         return merged
     if merged.takes_medication != "true":
         return merged
-    # Name was asked; this turn still has no name → stop asking
     return merged.merge_delta({"medications": "unspecified", "takes_medication": "true"})
+
+
+def _match_symptom(lower: str, original: str) -> tuple[str, str, str | None] | None:
+    # Longer phrases first
+    for phrase, concept_id, category, flag in sorted(
+        _SYMPTOM_PHRASES, key=lambda x: len(x[0]), reverse=True
+    ):
+        if phrase.casefold() in lower or phrase in original:
+            return concept_id, category, flag
+    return None
+
+
+def _parse_duration_days(text: str, *, pending_field: str | None = None) -> int | None:
+    lower = text.casefold().strip()
+    compact = re.sub(r"\s+", " ", lower)
+
+    if any(w in compact for w in ("yesterday", "kal se", "कल से", "since yesterday")):
+        return 1
+    if any(w in compact for w in ("a week", "1 week", "one week", "ek hafte", "एक हफ्ते", "hafte se")):
+        return 7
+    m = re.search(r"(\d+)\s*(?:week|weeks|hafte|हफ्ते)", compact)
+    if m:
+        return int(m.group(1)) * 7
+
+    # Digit + day unit
+    m = re.search(r"(\d+)\s*(?:day|days|din|दिन)", compact)
+    if m:
+        return int(m.group(1))
+
+    # Hindi / Hinglish number words + day unit
+    for word, n in _HINDI_NUM.items():
+        if re.search(rf"{re.escape(word)}\s*(?:din|day|days|दिन)", compact):
+            return n
+        if re.search(rf"{re.escape(word)}\s*(?:से|se)\b", text):
+            return n
+
+    # When duration was the pending question, accept bare numbers / number words
+    if pending_field == "duration":
+        if re.fullmatch(r"\d{1,3}", compact):
+            return int(compact)
+        for word, n in _HINDI_NUM.items():
+            if re.fullmatch(re.escape(word), compact, flags=re.I) or re.fullmatch(
+                re.escape(word), text.strip(), flags=re.I
+            ):
+                return n
+        # "चार दिन", already handled; also "लगभग चार"
+        for word, n in _HINDI_NUM.items():
+            if word in compact or word in text:
+                return n
+
+    # "4 din se" without requiring pending
+    m = re.search(r"(\d+)\s*(?:din|day|days|दिन)?\s*(?:se|से)?", compact)
+    if m and re.search(r"(din|day|दिन|se |से)", compact):
+        return int(m.group(1))
+
+    return None
+
+
+def _is_substantive_complaint(text: str) -> bool:
+    cleaned = re.sub(r"[^\w\u0900-\u097F\s]", "", text, flags=re.U).strip()
+    if len(cleaned) < 3:
+        return False
+    if _is_yes(cleaned) or _is_no(cleaned):
+        return False
+    if re.fullmatch(r"(ok|okay|hmm|ji|हाँ|हां|theek|ठीक)", cleaned, flags=re.I):
+        return False
+    return True
 
 
 def _extract_med_names(lower: str) -> list[str] | None:
