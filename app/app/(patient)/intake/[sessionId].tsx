@@ -5,6 +5,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -13,6 +14,7 @@ import {
 import { api, ApiError } from '../../../shared/api/client';
 import { ChatBubble } from '../../../shared/components/ChatBubble';
 import { FactChip } from '../../../shared/components/FactChip';
+import { IconAttach } from '../../../shared/components/icons';
 import { MicButton } from '../../../shared/components/MicButton';
 import { PrimaryButton } from '../../../shared/components/PrimaryButton';
 import { StatusBanner } from '../../../shared/components/StatusBanner';
@@ -25,7 +27,8 @@ import { useVoiceInput } from '../../../shared/hooks/useVoiceInput';
 import { speak } from '../../../shared/hooks/useTts';
 import { t } from '../../../shared/i18n';
 import { useSession } from '../../../shared/store/session';
-import { colors, fonts, layout, radius, space, typography } from '../../../shared/theme';
+import { colors, layout, radius, space, typography } from '../../../shared/theme';
+import { pickIntakeDocument } from '../../../shared/utils/pickDocument';
 
 export default function IntakeScreen() {
   const { sessionId } = useLocalSearchParams<{ sessionId: string }>();
@@ -45,6 +48,7 @@ export default function IntakeScreen() {
   /** After "Continue Talking", stay in chat — don't auto-jump back to summary. */
   const [followUpMode, setFollowUpMode] = useState(false);
   const [voiceInFlight, setVoiceInFlight] = useState(false);
+  const [pendingDocName, setPendingDocName] = useState<string | null>(null);
   const turnCounter = useRef(1);
   const voiceOpRef = useRef(0);
   const listRef = useRef<FlatList>(null);
@@ -117,6 +121,58 @@ export default function IntakeScreen() {
     },
     [token, sessionId, language, addTurns, followUpMode],
   );
+
+  const sendDocument = useCallback(async () => {
+    if (!token || !sessionId || busy || isRecording) return;
+    setError(null);
+    try {
+      const doc = await pickIntakeDocument();
+      if (!doc) return;
+      setBusy(true);
+      setPendingDocName(doc.name);
+      const turnId = `turn-${sessionId.slice(0, 8)}-${String(turnCounter.current++).padStart(4, '0')}`;
+      const caption = text.trim() || undefined;
+      const res = await api.turn(sessionId, token, {
+        turn_id: turnId,
+        input_type: 'document',
+        content: caption,
+        language,
+        document_base64: doc.base64,
+        document_filename: doc.name,
+        document_mime_type: doc.mimeType,
+      });
+      const facts = Array.isArray(res.document_facts) ? res.document_facts.map(String) : [];
+      const filename = res.document_filename || doc.name;
+      addTurns(
+        caption || '',
+        res.ai_message,
+        res.fact_chips,
+        res.phase,
+        res.consultation_summary,
+        Boolean(res.conversation_complete ?? res.ready_for_confirm),
+        { filename, facts },
+      );
+      speak(res.ai_message, language);
+      setText('');
+      const complete = Boolean(res.ready_for_confirm || res.conversation_complete);
+      if (complete && res.consultation_summary && !followUpMode) {
+        setReady(true);
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message === 'DOCUMENT_TOO_LARGE') {
+        setError(t(language, 'documentTooLarge'));
+      } else if (e instanceof Error && e.message === 'DOCUMENT_READ_FAILED') {
+        setError(t(language, 'documentReadFailed'));
+      } else if (e instanceof ApiError) {
+        setError(e.message);
+      } else {
+        setError(t(language, 'retrying'));
+      }
+    } finally {
+      setBusy(false);
+      setPendingDocName(null);
+    }
+  }, [token, sessionId, busy, isRecording, text, language, addTurns, followUpMode]);
 
   const onMicStart = async () => {
     if (isRecording || busy) return;
@@ -221,13 +277,16 @@ export default function IntakeScreen() {
                 speaker={item.speaker}
                 text={item.text}
                 index={index}
+                attachment={item.attachment}
                 onPlay={() => speak(item.text, language)}
               />
             )}
             ListEmptyComponent={
               <View style={styles.empty}>
                 <Text style={styles.emptyTitle}>Tap Speak and tell us your problem</Text>
-                <Text style={styles.emptyBody}>You can also type below if voice is not available.</Text>
+                <Text style={styles.emptyBody}>
+                  You can also type below, or add a report / prescription document.
+                </Text>
               </View>
             }
           />
@@ -307,6 +366,19 @@ export default function IntakeScreen() {
             <View style={styles.textWrap}>
               <Text style={styles.fallbackLabel}>{t(language, 'typeInstead')}</Text>
               <View style={styles.inputRow}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t(language, 'addDocument')}
+                  disabled={busy || isRecording}
+                  onPress={sendDocument}
+                  style={({ pressed }) => [
+                    styles.attachBtn,
+                    (busy || isRecording) && styles.attachOff,
+                    pressed && styles.attachPressed,
+                  ]}
+                >
+                  <IconAttach size={22} color={colors.teal700} />
+                </Pressable>
                 <TextInput
                   style={styles.input}
                   value={text}
@@ -324,6 +396,11 @@ export default function IntakeScreen() {
                   disabled={busy || !text.trim()}
                 />
               </View>
+              <Text style={styles.docHint}>
+                {pendingDocName
+                  ? `${t(language, 'documentReading')} (${pendingDocName})`
+                  : t(language, 'documentHint')}
+              </Text>
             </View>
           </View>
         )}
@@ -404,8 +481,20 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: space[3],
+    gap: space[2],
   },
+  attachBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: radius.card,
+    borderWidth: 1.5,
+    borderColor: colors.teal500,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attachOff: { opacity: 0.45 },
+  attachPressed: { opacity: 0.85, backgroundColor: colors.tealSoft },
   input: {
     flex: 1,
     minHeight: 48,
@@ -418,6 +507,11 @@ const styles = StyleSheet.create({
     ...typography.body,
     lineHeight: 22,
     backgroundColor: colors.white,
+  },
+  docHint: {
+    ...typography.caption,
+    textAlign: 'center',
+    color: colors.inkMuted,
   },
   loader: { marginTop: space[1] },
 });

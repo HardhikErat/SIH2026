@@ -15,6 +15,11 @@ from core.conversation_memory import (
     question_tracker_id,
     recent_patient_utterances,
 )
+from core.document_extract import (
+    build_document_utterance,
+    extract_clinical_from_document,
+    extract_document_text,
+)
 from core.errors import ApiException
 from core.llm_gateway import gateway
 from core.normalization import normalize_fields
@@ -30,9 +35,12 @@ router = APIRouter()
 
 class TurnBody(BaseModel):
     turn_id: str = Field(min_length=8)
-    input_type: Literal["text", "audio"] = "text"
+    input_type: Literal["text", "audio", "document"] = "text"
     content: str | None = None
     audio_base64: str | None = None
+    document_base64: str | None = None
+    document_filename: str | None = None
+    document_mime_type: str | None = None
     language: str | None = None
 
 
@@ -87,6 +95,10 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
     language = body.language or session.get("language") or "en"
     asr_confidence = None
     utterance = (body.content or "").strip()
+    document_meta: dict[str, Any] | None = None
+    document_facts: list[str] = []
+    document_patient_note: str | None = None
+    document_delta: dict[str, Any] | None = None
 
     if body.input_type == InputType.AUDIO.value:
         if not body.audio_base64:
@@ -123,9 +135,6 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
                 "I didn't catch that clearly — can you repeat, or type instead?",
             )
 
-    if not utterance:
-        raise ApiException(400, "EMPTY_CONTENT", "Type or speak an answer to continue.")
-
     fields = CollectedFields.model_validate(session.get("collected_fields") or {})
     asked_questions: list[str] = list(session.get("asked_questions") or [])
     recent_turns = recent_patient_utterances(history)
@@ -141,30 +150,67 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
             pending_hint = qt.get(lang0) or qt.get("en") or pending[0].get("question_text_key")
         else:
             pending_hint = pending[0].get("question_text_key")
-    try:
-        delta_model = gateway.extract(
-            utterance,
-            fields,
-            language,
-            recent_turns=recent_turns,
-            pending_field=pending_field,
-            pending_hint=pending_hint,
-        )
-    except Exception as exc:  # noqa: BLE001
-        raise ApiException(
-            502,
-            "SCHEMA_VALIDATION_FAILED",
-            "LLM output did not match intake schema; re-prompted.",
-            details={"reason": str(exc)},
-        ) from exc
 
-    delta = delta_model.model_dump(exclude_none=True)
-    delta = enrich_utterance_delta(
-        utterance,
-        delta,
-        pending_field=pending_field,
-        collected=fields,
-    )
+    if body.input_type == InputType.DOCUMENT.value:
+        if not body.document_base64:
+            raise ApiException(400, "DOCUMENT_REQUIRED", "document_base64 is required for document turns.")
+        parsed = extract_document_text(
+            filename=body.document_filename or "document",
+            mime_type=body.document_mime_type,
+            document_base64=body.document_base64,
+            language=language,
+        )
+        extracted = extract_clinical_from_document(parsed["text"], fields, language)
+        document_facts = list(extracted.get("key_facts") or [])
+        document_patient_note = str(extracted.get("patient_note") or "").strip() or None
+        document_delta = dict(extracted.get("clinical_delta") or {})
+        document_meta = {
+            "filename": parsed["filename"],
+            "mime_type": parsed["mime_type"],
+            "char_count": parsed["char_count"],
+            "truncated": parsed["truncated"],
+            "key_facts": document_facts,
+        }
+        # Caption from patient (optional) + structured facts become the utterance
+        caption = utterance
+        utterance = build_document_utterance(parsed["filename"], document_facts, parsed["text"])
+        if caption:
+            utterance = f"{caption}\n\n{utterance}"
+        # Prefer document-structured delta; fall through enrichment with empty LLM delta
+        delta = dict(document_delta)
+        delta = enrich_utterance_delta(
+            utterance,
+            delta,
+            pending_field=pending_field,
+            collected=fields,
+        )
+    else:
+        if not utterance:
+            raise ApiException(400, "EMPTY_CONTENT", "Type or speak an answer to continue.")
+        try:
+            delta_model = gateway.extract(
+                utterance,
+                fields,
+                language,
+                recent_turns=recent_turns,
+                pending_field=pending_field,
+                pending_hint=pending_hint,
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise ApiException(
+                502,
+                "SCHEMA_VALIDATION_FAILED",
+                "LLM output did not match intake schema; re-prompted.",
+                details={"reason": str(exc)},
+            ) from exc
+
+        delta = delta_model.model_dump(exclude_none=True)
+        delta = enrich_utterance_delta(
+            utterance,
+            delta,
+            pending_field=pending_field,
+            collected=fields,
+        )
     # Capture Aadhaar from utterance / delta without storing the full number in fields
     from core.aadhaar import aadhaar_hash, aadhaar_last4, normalize_aadhaar
 
@@ -202,10 +248,32 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
     )
     rules = run_rule_engine(merged, delta=delta, turn_history=prior_turns, current_turn_id=body.turn_id)
 
+    # Surface document key facts on the intake record for the doctor
+    if document_facts:
+        hist: list[str] = []
+        if isinstance(merged.medical_history, list):
+            hist = list(merged.medical_history)
+        for fact in document_facts:
+            line = f"From document: {fact}"
+            if line not in hist:
+                hist.append(line)
+        merged = merged.model_copy(update={"medical_history": hist[:24]})
+
+    display_text = utterance
+    if body.input_type == InputType.DOCUMENT.value and document_meta:
+        name = document_meta.get("filename") or "document"
+        caption = (body.content or "").strip()
+        lines = [f"📎 {name}"]
+        if caption:
+            lines.append(caption)
+        for fact in document_facts[:8]:
+            lines.append(f"• {fact}")
+        display_text = "\n".join(lines)
+
     patient_turn = TurnRecord(
         turn_id=body.turn_id,
         speaker="patient",
-        text=utterance,
+        text=display_text,
         input_type=InputType(body.input_type),
         extracted_delta=delta,
         asr_confidence=asr_confidence,
@@ -238,13 +306,22 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
         if tracker not in asked_questions:
             asked_questions.append(tracker)
     hint = question_text(nxt, language) if nxt else None
-    ai_text = gateway.phrase_reply(
-        utterance,
-        merged,
-        language,
-        next_field=nxt.field if nxt else None,
-        next_hint=hint,
-    )
+    if body.input_type == InputType.DOCUMENT.value:
+        base_note = document_patient_note or _document_ack(language)
+        if nxt is None:
+            ai_text = base_note
+        elif hint:
+            ai_text = f"{base_note} {hint}"
+        else:
+            ai_text = base_note
+    else:
+        ai_text = gateway.phrase_reply(
+            utterance,
+            merged,
+            language,
+            next_field=nxt.field if nxt else None,
+            next_hint=hint,
+        )
     # Strip accidental re-ask of already-collected severity/duration from live LLM replies
     ai_text = _sanitize_reply(ai_text, merged, nxt.field if nxt else None)
     done = nxt is None
@@ -279,6 +356,10 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
     session["conversation_memory"] = memory.model_dump()
     session["model_version"] = gateway.model_version
     session["dictionary_review"] = review_terms
+    if document_meta:
+        attached = list(session.get("attached_documents") or [])
+        attached.append(document_meta)
+        session["attached_documents"] = attached[-10:]
     phase = detect_phase(merged).value
 
     summary = None
@@ -286,7 +367,7 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
     summary_updated = False
     if done:
         phase = "completed"
-        had_new_facts = bool(delta)
+        had_new_facts = bool(delta) or bool(document_facts)
         prior_summary = session.get("consultation_summary")
         prior_summary_en = session.get("consultation_summary_en")
         lang_code = (language or "en").split("-")[0].lower()
@@ -315,6 +396,10 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
 
     store.save_session(session)
 
+    chips = _chips(merged)
+    if document_meta:
+        chips = [{"label": "Document reviewed", "field": "attached_document"}, *chips]
+
     return {
         "ai_message": ai_text,
         "audio_url": tts.get("audio_url"),
@@ -330,10 +415,21 @@ def conversation_turn(session_id: str, body: TurnBody, principal: dict = Depends
         "phase": phase,
         "consultation_summary": summary,
         "consultation_summary_en": summary_en,
-        "fact_chips": _chips(merged),
+        "fact_chips": chips,
+        "document_filename": (document_meta or {}).get("filename"),
+        "document_facts": document_facts or None,
         "model_version": gateway.model_version,
         "llm_live": gateway.live,
     }
+
+
+def _document_ack(language: str) -> str:
+    lang = (language or "en").split("-")[0].lower()
+    return {
+        "en": "I reviewed your document and noted the important details.",
+        "hi": "मैंने आपका दस्तावेज़ देख लिया और ज़रूरी बातें नोट कर लीं।",
+        "mr": "मी तुमचा दस्तऐवज पाहिला आणि महत्त्वाच्या गोष्टी नोंदवल्या.",
+    }.get(lang, "I reviewed your document and noted the important details.")
 
 
 def _sanitize_reply(ai_text: str, fields: CollectedFields, next_field: str | None) -> str:

@@ -36,6 +36,7 @@ class PriorityFlag(str, Enum):
 class InputType(str, Enum):
     TEXT = "text"
     AUDIO = "audio"
+    DOCUMENT = "document"
 
 
 class ConsultationPhase(str, Enum):

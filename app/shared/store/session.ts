@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 
-type ChatTurn = { speaker: 'ai' | 'patient'; text: string; audioUrl?: string };
+type ChatTurn = {
+  speaker: 'ai' | 'patient';
+  text: string;
+  audioUrl?: string;
+  attachment?: { filename: string; facts?: string[] };
+};
 
 type SessionState = {
   sessionId: string | null;
@@ -24,6 +29,7 @@ type SessionState = {
     phase?: 'basic_details' | 'consultation' | 'completed',
     summary?: Record<string, unknown> | null,
     conversationComplete?: boolean,
+    attachment?: { filename: string; facts?: string[] } | null,
   ) => void;
   appendAiMessage: (text: string) => void;
   setDoctorToken: (token: string | null) => void;
@@ -55,9 +61,17 @@ export const useSession = create<SessionState>((set) => ({
       consultationSummary: null,
       conversationComplete: false,
     }),
-  addTurns: (patient, ai, chips, phase, summary, conversationComplete) =>
+  addTurns: (patient, ai, chips, phase, summary, conversationComplete, attachment) =>
     set((s) => ({
-      turns: [...s.turns, { speaker: 'patient', text: patient }, { speaker: 'ai', text: ai }],
+      turns: [
+        ...s.turns,
+        {
+          speaker: 'patient',
+          text: patient,
+          ...(attachment ? { attachment } : {}),
+        },
+        { speaker: 'ai', text: ai },
+      ],
       chips: chips ?? s.chips,
       phase: phase ?? s.phase,
       consultationSummary: summary !== undefined && summary !== null ? summary : s.consultationSummary,

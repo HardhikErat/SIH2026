@@ -137,6 +137,8 @@ export type TurnResponse = {
   phase?: 'basic_details' | 'consultation' | 'completed';
   consultation_summary?: Record<string, unknown> | null;
   fact_chips?: { label: string; field: string }[];
+  document_filename?: string | null;
+  document_facts?: string[] | null;
   contradictions?: unknown[];
   priority_flag?: string;
   model_version?: string;
@@ -191,6 +193,7 @@ export type DoctorIntake = {
   allergies?: string;
   symptoms?: unknown;
   medical_history?: unknown;
+  attached_documents?: { filename?: string; mime_type?: string; key_facts?: string[]; char_count?: number }[];
   source_tag?: string;
   audit_log?: { field_name: string; old_value: unknown; new_value: unknown; changed_at: string }[];
   patient?: {

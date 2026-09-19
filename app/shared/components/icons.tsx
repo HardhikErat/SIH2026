@@ -192,6 +192,20 @@ export function IconMicFilled({ size = 24, color = colors.white }: IconProps) {
   );
 }
 
+export function IconAttach({ size = 24, color = colors.teal700 }: IconProps) {
+  return (
+    <Svg {...base(size)} fill="none">
+      <Path
+        d="M15.5 7.5l-6.8 6.8a2.4 2.4 0 0 0 3.4 3.4l7.2-7.2a4 4 0 0 0-5.7-5.7L6.2 12.2a5.5 5.5 0 0 0 7.8 7.8l6-6"
+        stroke={color}
+        strokeWidth={1.75}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 export function IconArrowRight({ size = 24, color = colors.white }: IconProps) {
   return (
     <Svg {...base(size)} fill="none">

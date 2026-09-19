@@ -3,6 +3,7 @@ import { MotionView } from '../motion/MotionView';
 import { bubbleEnter } from '../motion/presets';
 import { useMotionTransition } from '../motion/useMotionTransition';
 import { colors, fonts, radius, space, typography } from '../theme';
+import { IconAttach } from './icons';
 
 const airaLogo = require('../../assets/images/aira-logo.png');
 
@@ -11,12 +12,15 @@ type Props = {
   text: string;
   onPlay?: () => void;
   index?: number;
+  attachment?: { filename: string; facts?: string[] } | null;
 };
 
-export function ChatBubble({ speaker, text, onPlay, index = 0 }: Props) {
+export function ChatBubble({ speaker, text, onPlay, index = 0, attachment }: Props) {
   const ai = speaker === 'ai';
   const enter = bubbleEnter(speaker);
   const transition = useMotionTransition(0.2, index * 0.04);
+  const showAttachment = !ai && Boolean(attachment?.filename);
+  const facts = attachment?.facts?.filter(Boolean) ?? [];
 
   return (
     <MotionView
@@ -31,7 +35,24 @@ export function ChatBubble({ speaker, text, onPlay, index = 0 }: Props) {
       ) : null}
       <View style={[styles.bubble, ai ? styles.ai : styles.patient]}>
         {ai ? <Text style={styles.aiLabel}>Aira</Text> : null}
-        <Text style={[styles.text, ai ? styles.aiText : styles.pText]}>{text}</Text>
+        {showAttachment ? (
+          <View style={styles.attachBadge}>
+            <IconAttach size={16} color={colors.teal700} />
+            <Text style={styles.attachName} numberOfLines={2}>
+              {attachment!.filename}
+            </Text>
+          </View>
+        ) : null}
+        {showAttachment && facts.length > 0
+          ? facts.map((fact, i) => (
+              <Text key={`${fact}-${i}`} style={[styles.text, styles.pText]}>
+                • {fact}
+              </Text>
+            ))
+          : null}
+        {(!showAttachment || (text && !text.startsWith('📎'))) && text ? (
+          <Text style={[styles.text, ai ? styles.aiText : styles.pText]}>{text}</Text>
+        ) : null}
         {ai ? (
           <Pressable onPress={onPlay} accessibilityLabel="Listen" style={styles.play}>
             <Text style={styles.playText}>Listen</Text>
@@ -75,6 +96,21 @@ const styles = StyleSheet.create({
     fontFamily: fonts.uiSemiBold,
     letterSpacing: 0.04,
     textTransform: 'uppercase',
+  },
+  attachBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space[2],
+    backgroundColor: colors.tealSoft,
+    borderRadius: radius.sm,
+    paddingHorizontal: space[2],
+    paddingVertical: space[2],
+  },
+  attachName: {
+    ...typography.caption,
+    color: colors.teal700,
+    fontFamily: fonts.uiSemiBold,
+    flexShrink: 1,
   },
   text: { ...typography.body, lineHeight: 24 },
   aiText: { color: colors.white },

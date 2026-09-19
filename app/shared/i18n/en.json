@@ -46,5 +46,11 @@
   "cancelVoice": "Cancel",
   "retrying": "Couldn't reach the server. Your answers are saved — retrying automatically.",
   "betaAccuracy": "Beta accuracy",
-  "experimental": "Text-first, voice experimental"
+  "experimental": "Text-first, voice experimental",
+  "addDocument": "Add document",
+  "documentHint": "PDF, photo, or text of a report / prescription",
+  "documentReading": "Reading your document…",
+  "documentTooLarge": "Please choose a file smaller than 8 MB.",
+  "documentReadFailed": "Could not read that file. Try a PDF or clear photo.",
+  "documentUnsupported": "That file type is not supported. Use PDF, text, or an image."
 }

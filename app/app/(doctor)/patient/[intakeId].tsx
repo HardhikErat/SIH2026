@@ -135,6 +135,41 @@ export default function DoctorPatientDetail() {
         onChange={(v: string) => onSaveField('allergies', v)}
       />
 
+      {(Array.isArray(intake.medical_history)
+        ? intake.medical_history
+        : Array.isArray(intake.structured_fields?.medical_history)
+          ? (intake.structured_fields!.medical_history as unknown[])
+          : []
+      ).length > 0 ? (
+        <View style={styles.docBlock}>
+          <Text style={styles.docTitle}>From patient documents / history</Text>
+          {(Array.isArray(intake.medical_history)
+            ? intake.medical_history
+            : (intake.structured_fields?.medical_history as unknown[])
+          ).map((item: unknown, i: number) => (
+            <Text key={i} style={styles.docLine}>
+              • {String(item)}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+
+      {(intake.attached_documents as { filename?: string; key_facts?: string[] }[] | undefined)?.length ? (
+        <View style={styles.docBlock}>
+          <Text style={styles.docTitle}>Attached documents</Text>
+          {(intake.attached_documents as { filename?: string; key_facts?: string[] }[]).map((doc, i) => (
+            <View key={`${doc.filename}-${i}`} style={styles.docItem}>
+              <Text style={styles.docFile}>{doc.filename || 'document'}</Text>
+              {(doc.key_facts || []).map((fact, j) => (
+                <Text key={j} style={styles.docLine}>
+                  • {fact}
+                </Text>
+              ))}
+            </View>
+          ))}
+        </View>
+      ) : null}
+
       <MedicalHistoryTimeline entries={intake.medical_history_timeline} />
 
       {!verified ? (
@@ -152,4 +187,17 @@ export default function DoctorPatientDetail() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.sand100 },
   ok: { ...typography.title, color: colors.statusOk, textAlign: 'center', marginTop: space[4] },
+  docBlock: {
+    backgroundColor: colors.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: space[4],
+    gap: space[2],
+    marginBottom: space[3],
+  },
+  docTitle: { ...typography.label, color: colors.teal700 },
+  docItem: { gap: space[1], marginBottom: space[2] },
+  docFile: { ...typography.body, fontFamily: 'Inter_600SemiBold', color: colors.ink },
+  docLine: { ...typography.bodyMuted, paddingLeft: space[2] },
 });

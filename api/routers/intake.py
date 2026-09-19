@@ -131,6 +131,11 @@ def confirm_intake(session_id: str, body: ConfirmBody, principal: dict = Depends
     if history == "unknown":
         history = []
 
+    structured = fields.model_dump()
+    attached_docs = list(session.get("attached_documents") or [])
+    if attached_docs:
+        structured["attached_documents"] = attached_docs
+
     try:
         intake = store.create_intake(
             {
@@ -144,6 +149,7 @@ def confirm_intake(session_id: str, body: ConfirmBody, principal: dict = Depends
                 "medical_history": history,
                 "medications": meds,
                 "allergies": fields.allergies if fields.allergies not in (None,) else "unknown",
+                "attached_documents": attached_docs,
                 "missing_information": rules.missing_fields,
                 "contradictions": (
                     [c.model_dump() for c in rules.contradictions]
@@ -156,7 +162,7 @@ def confirm_intake(session_id: str, body: ConfirmBody, principal: dict = Depends
                 "turn_history": list(session.get("turn_history") or []),
                 "language": session.get("language") or "en",
                 "status": IntakeStatus.AI_GENERATED.value,
-                "structured_fields": fields.model_dump(),
+                "structured_fields": structured,
             }
         )
     except Exception as exc:  # noqa: BLE001

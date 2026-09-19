@@ -129,6 +129,9 @@ def doctor_intake(intake_id: str, principal: dict = Depends(require_staff)) -> d
 
     return {
         **intake,
+        "attached_documents": intake.get("attached_documents")
+        or (intake.get("structured_fields") or {}).get("attached_documents")
+        or [],
         "consultation_summary_en": consultation_summary_en,
         "audit_log": audit,
         "source_tag": "AI_GENERATED" if intake.get("status") == IntakeStatus.AI_GENERATED.value else "DOCTOR_VERIFIED",
