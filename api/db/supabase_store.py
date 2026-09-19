@@ -27,6 +27,20 @@ SESSION_COLUMNS = {
     "updated_at",
 }
 
+PATIENT_COLUMNS = {
+    "display_name",
+    "age",
+    "gender",
+    "preferred_language",
+    "dialect_hint",
+    "camp_id",
+    "aadhaar_hash",
+    "aadhaar_last4",
+}
+
+# Newer columns — drop on schema mismatch so camps still work before migrations land.
+PATIENT_OPTIONAL_COLUMNS = ("aadhaar_hash", "aadhaar_last4", "dialect_hint", "camp_id")
+
 INTAKE_COLUMNS = {
     "session_id",
     "patient_id",
@@ -79,22 +93,37 @@ class SupabaseStore:
         return res.data[0] if res.data else None
 
     def create_patient(self, **kwargs: Any) -> dict:
-        res = self.client.table("patients").insert(kwargs).execute()
-        return res.data[0]
+        payload = {k: v for k, v in kwargs.items() if k in PATIENT_COLUMNS and v is not None}
+        try:
+            res = self.client.table("patients").insert(payload).execute()
+            if not res.data:
+                raise RuntimeError("Patient insert returned no row")
+            return res.data[0]
+        except Exception as first_err:  # noqa: BLE001
+            trimmed = {k: v for k, v in payload.items() if k not in PATIENT_OPTIONAL_COLUMNS}
+            if trimmed == payload:
+                raise first_err
+            res = self.client.table("patients").insert(trimmed).execute()
+            if not res.data:
+                raise RuntimeError(f"Patient insert failed: {first_err}") from first_err
+            return res.data[0]
 
     def get_patient(self, patient_id: str) -> dict | None:
         res = self.client.table("patients").select("*").eq("id", patient_id).limit(1).execute()
         return res.data[0] if res.data else None
 
     def find_patient_by_aadhaar_hash(self, aadhaar_hash: str) -> dict | None:
-        res = (
-            self.client.table("patients")
-            .select("*")
-            .eq("aadhaar_hash", aadhaar_hash)
-            .limit(1)
-            .execute()
-        )
-        return res.data[0] if res.data else None
+        try:
+            res = (
+                self.client.table("patients")
+                .select("*")
+                .eq("aadhaar_hash", aadhaar_hash)
+                .limit(1)
+                .execute()
+            )
+            return res.data[0] if res.data else None
+        except Exception:  # noqa: BLE001 — column may be missing pre-migration
+            return None
 
     def list_intakes_by_patient(
         self, patient_id: str, *, exclude_intake_id: str | None = None
@@ -125,8 +154,24 @@ class SupabaseStore:
         return items
 
     def update_patient(self, patient_id: str, **kwargs: Any) -> dict:
-        res = self.client.table("patients").update(kwargs).eq("id", patient_id).execute()
-        return res.data[0]
+        payload = {k: v for k, v in kwargs.items() if k in PATIENT_COLUMNS and v is not None}
+        try:
+            res = self.client.table("patients").update(payload).eq("id", patient_id).execute()
+            if res.data:
+                return res.data[0]
+        except Exception as first_err:  # noqa: BLE001
+            trimmed = {k: v for k, v in payload.items() if k not in PATIENT_OPTIONAL_COLUMNS}
+            if trimmed and trimmed != payload:
+                res = self.client.table("patients").update(trimmed).eq("id", patient_id).execute()
+                if res.data:
+                    return res.data[0]
+            raise first_err
+        # Update matched no rows (or RLS stripped return) — fall back to read
+        existing = self.get_patient(patient_id)
+        if existing:
+            existing.update(payload)
+            return existing
+        raise RuntimeError(f"Patient {patient_id} not found for update")
 
     def create_session(self, patient_id: str, camp_id: str | None = None) -> dict:
         payload = {
@@ -136,6 +181,8 @@ class SupabaseStore:
             "turn_history": [],
         }
         res = self.client.table("sessions").insert(payload).execute()
+        if not res.data:
+            raise RuntimeError("Session insert returned no row")
         row = res.data[0]
         row["question_count"] = row.get("question_count") or 0
         row["language"] = row.get("language") or "en"
