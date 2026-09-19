@@ -1,14 +1,21 @@
-"""Supabase-backed store mirroring MemoryStore (07_DB_Architecture)."""
+"""Supabase-backed store via PostgREST (httpx) — serverless-safe.
+
+Avoids the full supabase-py client on Vercel (auth/realtime session storage has
+caused ``[Errno 16] Device or resource busy`` during patient session start).
+"""
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
-from supabase import create_client
+import httpx
 
 from core.config import settings
 from core.schema import IntakeStatus, SessionStatus
 from db.demo_staff import authenticate_demo_staff
+
+logger = logging.getLogger(__name__)
 
 SESSION_COLUMNS = {
     "patient_id",
@@ -38,7 +45,6 @@ PATIENT_COLUMNS = {
     "aadhaar_last4",
 }
 
-# Newer columns — drop on schema mismatch so camps still work before migrations land.
 PATIENT_OPTIONAL_COLUMNS = ("aadhaar_hash", "aadhaar_last4", "dialect_hint", "camp_id")
 
 INTAKE_COLUMNS = {
@@ -70,71 +76,140 @@ INTAKE_COLUMNS = {
 
 class SupabaseStore:
     def __init__(self) -> None:
-        self.client = create_client(settings.supabase_url, settings.supabase_service_role_key)
+        base = (settings.supabase_url or "").rstrip("/")
+        if not base or not settings.supabase_service_role_key:
+            raise RuntimeError("Supabase URL and service role key are required")
+        self.rest_url = f"{base}/rest/v1"
+        self._headers = {
+            "apikey": settings.supabase_service_role_key,
+            "Authorization": f"Bearer {settings.supabase_service_role_key}",
+            "Content-Type": "application/json",
+        }
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        json_body: Any = None,
+        params: dict[str, str] | None = None,
+        prefer: str | None = None,
+        timeout: float = 25.0,
+    ) -> Any:
+        headers = dict(self._headers)
+        if prefer:
+            headers["Prefer"] = prefer
+        url = f"{self.rest_url}/{path.lstrip('/')}"
+        with httpx.Client(timeout=timeout) as client:
+            response = client.request(method, url, headers=headers, params=params, json=json_body)
+        if response.status_code >= 400:
+            raise RuntimeError(
+                f"PostgREST {method} {path} failed ({response.status_code}): {response.text[:400]}"
+            )
+        if response.status_code == 204 or not response.content:
+            return None
+        return response.json()
+
+    def _select(
+        self,
+        table: str,
+        *,
+        filters: dict[str, str] | None = None,
+        select: str = "*",
+        order: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict]:
+        params: dict[str, str] = {"select": select}
+        if filters:
+            params.update(filters)
+        if order:
+            params["order"] = order
+        if limit is not None:
+            params["limit"] = str(limit)
+        data = self._request("GET", table, params=params)
+        return data if isinstance(data, list) else []
+
+    def _insert(self, table: str, row: dict) -> dict:
+        data = self._request("POST", table, json_body=row, prefer="return=representation")
+        if isinstance(data, list) and data:
+            return data[0]
+        if isinstance(data, dict):
+            return data
+        raise RuntimeError(f"{table} insert returned no row")
+
+    def _update(self, table: str, filters: dict[str, str], row: dict) -> list[dict]:
+        data = self._request(
+            "PATCH",
+            table,
+            json_body=row,
+            params=filters,
+            prefer="return=representation",
+        )
+        return data if isinstance(data, list) else ([] if data is None else [data])
+
+    def _upsert(self, table: str, row: dict) -> dict:
+        data = self._request(
+            "POST",
+            table,
+            json_body=row,
+            prefer="resolution=merge-duplicates,return=representation",
+        )
+        if isinstance(data, list) and data:
+            return data[0]
+        if isinstance(data, dict):
+            return data
+        return row
 
     def create_camp(self, name: str, location: str, organizer: str, start_date: str, end_date: str) -> dict:
-        res = (
-            self.client.table("camps")
-            .insert(
-                {
-                    "name": name,
-                    "location": location,
-                    "organizer": organizer,
-                    "start_date": start_date,
-                    "end_date": end_date,
-                }
-            )
-            .execute()
+        return self._insert(
+            "camps",
+            {
+                "name": name,
+                "location": location,
+                "organizer": organizer,
+                "start_date": start_date,
+                "end_date": end_date,
+            },
         )
-        return res.data[0]
 
     def get_camp(self, camp_id: str) -> dict | None:
-        res = self.client.table("camps").select("*").eq("id", camp_id).limit(1).execute()
-        return res.data[0] if res.data else None
+        rows = self._select("camps", filters={"id": f"eq.{camp_id}"}, limit=1)
+        return rows[0] if rows else None
 
     def create_patient(self, **kwargs: Any) -> dict:
         payload = {k: v for k, v in kwargs.items() if k in PATIENT_COLUMNS and v is not None}
         try:
-            res = self.client.table("patients").insert(payload).execute()
-            if not res.data:
-                raise RuntimeError("Patient insert returned no row")
-            return res.data[0]
+            return self._insert("patients", payload)
         except Exception as first_err:  # noqa: BLE001
             trimmed = {k: v for k, v in payload.items() if k not in PATIENT_OPTIONAL_COLUMNS}
             if trimmed == payload:
                 raise first_err
-            res = self.client.table("patients").insert(trimmed).execute()
-            if not res.data:
-                raise RuntimeError(f"Patient insert failed: {first_err}") from first_err
-            return res.data[0]
+            logger.warning("Patient insert retry without optional columns: %s", first_err)
+            return self._insert("patients", trimmed)
 
     def get_patient(self, patient_id: str) -> dict | None:
-        res = self.client.table("patients").select("*").eq("id", patient_id).limit(1).execute()
-        return res.data[0] if res.data else None
+        rows = self._select("patients", filters={"id": f"eq.{patient_id}"}, limit=1)
+        return rows[0] if rows else None
 
     def find_patient_by_aadhaar_hash(self, aadhaar_hash: str) -> dict | None:
         try:
-            res = (
-                self.client.table("patients")
-                .select("*")
-                .eq("aadhaar_hash", aadhaar_hash)
-                .limit(1)
-                .execute()
+            rows = self._select(
+                "patients",
+                filters={"aadhaar_hash": f"eq.{aadhaar_hash}"},
+                limit=1,
             )
-            return res.data[0] if res.data else None
+            return rows[0] if rows else None
         except Exception:  # noqa: BLE001 — column may be missing pre-migration
             return None
 
     def list_intakes_by_patient(
         self, patient_id: str, *, exclude_intake_id: str | None = None
     ) -> list[dict]:
-        q = (
-            self.client.table("intakes")
-            .select("*")
-            .eq("patient_id", patient_id)
-            .order("created_at", desc=True)
+        items = self._select(
+            "intakes",
+            filters={"patient_id": f"eq.{patient_id}"},
+            order="created_at.desc",
         )
-        items = q.execute().data or []
         if exclude_intake_id:
             items = [r for r in items if r.get("id") != exclude_intake_id]
         return items
@@ -143,14 +218,12 @@ class SupabaseStore:
         self, aadhaar_hash: str, *, exclude_intake_id: str | None = None
     ) -> list[dict]:
         try:
-            q = (
-                self.client.table("intakes")
-                .select("*")
-                .eq("aadhaar_hash", aadhaar_hash)
-                .order("created_at", desc=True)
+            items = self._select(
+                "intakes",
+                filters={"aadhaar_hash": f"eq.{aadhaar_hash}"},
+                order="created_at.desc",
             )
-            items = q.execute().data or []
-        except Exception:  # noqa: BLE001 — column may be missing pre-migration
+        except Exception:  # noqa: BLE001
             return []
         if exclude_intake_id:
             items = [r for r in items if r.get("id") != exclude_intake_id]
@@ -159,17 +232,16 @@ class SupabaseStore:
     def update_patient(self, patient_id: str, **kwargs: Any) -> dict:
         payload = {k: v for k, v in kwargs.items() if k in PATIENT_COLUMNS and v is not None}
         try:
-            res = self.client.table("patients").update(payload).eq("id", patient_id).execute()
-            if res.data:
-                return res.data[0]
+            rows = self._update("patients", {"id": f"eq.{patient_id}"}, payload)
+            if rows:
+                return rows[0]
         except Exception as first_err:  # noqa: BLE001
             trimmed = {k: v for k, v in payload.items() if k not in PATIENT_OPTIONAL_COLUMNS}
             if trimmed and trimmed != payload:
-                res = self.client.table("patients").update(trimmed).eq("id", patient_id).execute()
-                if res.data:
-                    return res.data[0]
+                rows = self._update("patients", {"id": f"eq.{patient_id}"}, trimmed)
+                if rows:
+                    return rows[0]
             raise first_err
-        # Update matched no rows (or RLS stripped return) — fall back to read
         existing = self.get_patient(patient_id)
         if existing:
             existing.update(payload)
@@ -183,10 +255,7 @@ class SupabaseStore:
             "collected_fields": {},
             "turn_history": [],
         }
-        res = self.client.table("sessions").insert(payload).execute()
-        if not res.data:
-            raise RuntimeError("Session insert returned no row")
-        row = res.data[0]
+        row = self._insert("sessions", payload)
         row["question_count"] = row.get("question_count") or 0
         row["language"] = row.get("language") or "en"
         if camp_id:
@@ -194,8 +263,8 @@ class SupabaseStore:
         return row
 
     def get_session(self, session_id: str) -> dict | None:
-        res = self.client.table("sessions").select("*").eq("id", session_id).limit(1).execute()
-        return res.data[0] if res.data else None
+        rows = self._select("sessions", filters={"id": f"eq.{session_id}"}, limit=1)
+        return rows[0] if rows else None
 
     def save_session(self, session: dict) -> dict:
         sid = session["id"]
@@ -204,16 +273,23 @@ class SupabaseStore:
             for k, v in session.items()
             if k != "id" and k in SESSION_COLUMNS and v is not None
         }
-        res = self.client.table("sessions").update(payload).eq("id", sid).execute()
-        return res.data[0] if res.data else session
+        if not payload:
+            return session
+        rows = self._update("sessions", {"id": f"eq.{sid}"}, payload)
+        return rows[0] if rows else session
 
     def create_intake(self, row: dict) -> dict:
         payload = {k: v for k, v in row.items() if k in INTAKE_COLUMNS and v is not None}
-        # Optional / newer columns — drop on schema mismatch so submit still works
-        optional = ("consultation_summary_en", "camp_id", "turn_history", "language", "aadhaar_hash", "aadhaar_last4")
+        optional = (
+            "consultation_summary_en",
+            "camp_id",
+            "turn_history",
+            "language",
+            "aadhaar_hash",
+            "aadhaar_last4",
+        )
         try:
-            res = self.client.table("intakes").insert(payload).execute()
-            return res.data[0]
+            return self._insert("intakes", payload)
         except Exception as first_err:  # noqa: BLE001
             trimmed = dict(payload)
             dropped: list[str] = []
@@ -224,79 +300,72 @@ class SupabaseStore:
             if not dropped:
                 raise first_err
             try:
-                res = self.client.table("intakes").insert(trimmed).execute()
-                return res.data[0]
+                return self._insert("intakes", trimmed)
             except Exception as second_err:  # noqa: BLE001
                 raise RuntimeError(
                     f"intake insert failed after dropping {dropped}: {second_err}"
                 ) from second_err
 
     def get_intake(self, intake_id: str) -> dict | None:
-        res = self.client.table("intakes").select("*").eq("id", intake_id).limit(1).execute()
-        return res.data[0] if res.data else None
+        rows = self._select("intakes", filters={"id": f"eq.{intake_id}"}, limit=1)
+        return rows[0] if rows else None
 
     def get_intake_by_session(self, session_id: str) -> dict | None:
-        res = self.client.table("intakes").select("*").eq("session_id", session_id).limit(1).execute()
-        return res.data[0] if res.data else None
+        rows = self._select("intakes", filters={"session_id": f"eq.{session_id}"}, limit=1)
+        return rows[0] if rows else None
 
     def save_intake(self, intake: dict) -> dict:
         iid = intake["id"]
         payload = {k: v for k, v in intake.items() if k != "id"}
-        res = self.client.table("intakes").update(payload).eq("id", iid).execute()
-        return res.data[0] if res.data else intake
+        rows = self._update("intakes", {"id": f"eq.{iid}"}, payload)
+        return rows[0] if rows else intake
 
     def list_queue(self, camp_id: str | None = None) -> list[dict]:
-        res = (
-            self.client.table("intakes")
-            .select("*, patients(*), sessions(*)")
-            .eq("status", IntakeStatus.AI_GENERATED.value)
-            .execute()
+        items = self._select(
+            "intakes",
+            filters={"status": f"eq.{IntakeStatus.AI_GENERATED.value}"},
+            select="*,patients(*),sessions(*)",
         )
-        items = res.data or []
         rank = {"HIGH": 0, "MEDIUM": 1, "LOW": 2, "NONE": 3}
         items.sort(key=lambda r: (rank.get(r.get("priority_flag") or "NONE", 9), r.get("created_at") or ""))
         return items
 
-    def append_audit(self, intake_id: str, field_name: str, old_value: Any, new_value: Any, changed_by: str) -> dict:
-        res = (
-            self.client.table("audit_log")
-            .insert(
-                {
-                    "intake_id": intake_id,
-                    "field_name": field_name,
-                    "old_value": old_value,
-                    "new_value": new_value,
-                    "changed_by": changed_by,
-                }
-            )
-            .execute()
+    def append_audit(
+        self, intake_id: str, field_name: str, old_value: Any, new_value: Any, changed_by: str
+    ) -> dict:
+        return self._insert(
+            "audit_log",
+            {
+                "intake_id": intake_id,
+                "field_name": field_name,
+                "old_value": old_value,
+                "new_value": new_value,
+                "changed_by": changed_by,
+            },
         )
-        return res.data[0]
 
     def list_audit(self, intake_id: str) -> list[dict]:
-        res = (
-            self.client.table("audit_log")
-            .select("*")
-            .eq("intake_id", intake_id)
-            .order("changed_at")
-            .execute()
+        return self._select(
+            "audit_log",
+            filters={"intake_id": f"eq.{intake_id}"},
+            order="changed_at.asc",
         )
-        return res.data or []
 
     def add_asr_sample(self, row: dict) -> dict:
-        res = self.client.table("asr_samples").insert(row).execute()
-        return res.data[0]
+        return self._insert("asr_samples", row)
 
     def upsert_session_metrics(self, session_id: str, **kwargs: Any) -> dict:
         payload = {"session_id": session_id, **kwargs}
-        res = self.client.table("session_metrics").upsert(payload).execute()
-        return res.data[0] if res.data else payload
+        try:
+            return self._upsert("session_metrics", payload)
+        except Exception:  # noqa: BLE001
+            return payload
 
     def metrics_summary(self) -> dict:
-        samples = self.client.table("asr_samples").select("*").execute().data or []
-        metrics = self.client.table("session_metrics").select("*").execute().data or []
-        intakes = self.client.table("intakes").select("status").execute().data or []
-        audit = self.client.table("audit_log").select("field_name").execute().data or []
+        samples = self._select("asr_samples")
+        metrics = self._select("session_metrics")
+        intakes = self._select("intakes", select="status")
+        audit = self._select("audit_log", select="field_name")
         wers: dict[str, list[float]] = {}
         for s in samples:
             if s.get("wer") is not None:

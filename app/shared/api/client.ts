@@ -21,10 +21,27 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string |
   };
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${API}${path}`, { ...init, headers });
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json().catch(() => ({} as Record<string, unknown>));
   if (!res.ok) {
-    const err = data.error ?? {};
-    throw new ApiError(res.status, err.code ?? 'HTTP_ERROR', err.message ?? 'Request failed', err.details ?? {});
+    const nested =
+      (data as { error?: Record<string, unknown> }).error ??
+      (data as { detail?: { error?: Record<string, unknown> } | string }).detail;
+    const err =
+      nested && typeof nested === 'object' && 'error' in nested
+        ? (nested as { error: Record<string, unknown> }).error
+        : nested && typeof nested === 'object'
+          ? (nested as Record<string, unknown>)
+          : {};
+    const message =
+      (typeof err.message === 'string' && err.message) ||
+      (typeof nested === 'string' ? nested : '') ||
+      'Request failed';
+    throw new ApiError(
+      res.status,
+      typeof err.code === 'string' ? err.code : 'HTTP_ERROR',
+      message,
+      (err.details as Record<string, unknown>) ?? {},
+    );
   }
   return data as T;
 }

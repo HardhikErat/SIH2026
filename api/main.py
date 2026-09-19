@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI, Request
+import logging
+
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from core.config import settings
 from routers import admin, conversation, doctor, intake, metrics, session, speech, translation
+
+logger = logging.getLogger("api")
 
 app = FastAPI(
     title="Multilingual AI Pre-Consultation API",
@@ -35,21 +40,22 @@ app.include_router(admin.router, prefix=PREFIX, tags=["admin"])
 app.include_router(metrics.router, prefix=PREFIX, tags=["metrics"])
 
 
+def _http_error_payload(exc: StarletteHTTPException) -> dict:
+    detail = exc.detail
+    if isinstance(detail, dict) and "error" in detail:
+        return detail
+    return {"error": {"code": "HTTP_ERROR", "message": str(detail), "details": {}}}
+
+
+@app.exception_handler(StarletteHTTPException)
+@app.exception_handler(HTTPException)
+async def http_exception_handler(_request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    return JSONResponse(status_code=exc.status_code, content=_http_error_payload(exc))
+
+
 @app.exception_handler(Exception)
 async def unhandled(_request: Request, exc: Exception) -> JSONResponse:
-    import logging
-
-    from fastapi import HTTPException
-
-    if isinstance(exc, HTTPException):
-        detail = exc.detail
-        if isinstance(detail, dict) and "error" in detail:
-            return JSONResponse(status_code=exc.status_code, content=detail)
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={"error": {"code": "HTTP_ERROR", "message": str(detail), "details": {}}},
-        )
-    logging.getLogger("api").exception("Unhandled server error")
+    logger.exception("Unhandled server error")
     return JSONResponse(
         status_code=500,
         content={
