@@ -142,13 +142,16 @@ class SupabaseStore:
     def list_intakes_by_aadhaar_hash(
         self, aadhaar_hash: str, *, exclude_intake_id: str | None = None
     ) -> list[dict]:
-        q = (
-            self.client.table("intakes")
-            .select("*")
-            .eq("aadhaar_hash", aadhaar_hash)
-            .order("created_at", desc=True)
-        )
-        items = q.execute().data or []
+        try:
+            q = (
+                self.client.table("intakes")
+                .select("*")
+                .eq("aadhaar_hash", aadhaar_hash)
+                .order("created_at", desc=True)
+            )
+            items = q.execute().data or []
+        except Exception:  # noqa: BLE001 — column may be missing pre-migration
+            return []
         if exclude_intake_id:
             items = [r for r in items if r.get("id") != exclude_intake_id]
         return items

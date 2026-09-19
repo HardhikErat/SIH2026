@@ -64,52 +64,66 @@ def start_session(body: StartSessionBody) -> dict:
 
     hashed = aadhaar_hash(aadhaar)
     last4 = aadhaar_last4(aadhaar)
-    existing = store.find_patient_by_aadhaar_hash(hashed)
-    returning = existing is not None
 
-    if existing:
-        patient = store.update_patient(
-            existing["id"],
-            display_name=body.display_name or existing.get("display_name"),
-            age=body.age if body.age is not None else existing.get("age"),
-            gender=body.gender or existing.get("gender"),
+    try:
+        existing = store.find_patient_by_aadhaar_hash(hashed)
+        returning = existing is not None
+
+        if existing:
+            patient = store.update_patient(
+                existing["id"],
+                display_name=body.display_name or existing.get("display_name"),
+                age=body.age if body.age is not None else existing.get("age"),
+                gender=body.gender or existing.get("gender"),
+                preferred_language=body.language,
+                dialect_hint=body.dialect_hint,
+                camp_id=body.camp_id or existing.get("camp_id"),
+                aadhaar_hash=hashed,
+                aadhaar_last4=last4,
+            )
+            try:
+                prior_count = len(store.list_intakes_by_aadhaar_hash(hashed))
+            except Exception:  # noqa: BLE001
+                prior_count = 0
+        else:
+            patient = store.create_patient(
+                display_name=body.display_name,
+                age=body.age,
+                gender=body.gender,
+                preferred_language=body.language,
+                dialect_hint=body.dialect_hint,
+                camp_id=body.camp_id,
+                aadhaar_hash=hashed,
+                aadhaar_last4=last4,
+            )
+            prior_count = 0
+
+        session = store.create_session(patient["id"], camp_id=body.camp_id)
+        fields = CollectedFields(
+            display_name=body.display_name or patient.get("display_name"),
+            age=body.age if body.age is not None else patient.get("age"),
+            gender=body.gender or patient.get("gender") or "unknown",
+            aadhaar_last4=last4,
             preferred_language=body.language,
             dialect_hint=body.dialect_hint,
-            camp_id=body.camp_id or existing.get("camp_id"),
-            aadhaar_hash=hashed,
-            aadhaar_last4=last4,
         )
-        prior_count = len(store.list_intakes_by_aadhaar_hash(hashed))
-    else:
-        patient = store.create_patient(
-            display_name=body.display_name,
-            age=body.age,
-            gender=body.gender,
-            preferred_language=body.language,
-            dialect_hint=body.dialect_hint,
-            camp_id=body.camp_id,
-            aadhaar_hash=hashed,
-            aadhaar_last4=last4,
-        )
-        prior_count = 0
-
-    session = store.create_session(patient["id"], camp_id=body.camp_id)
-    fields = CollectedFields(
-        display_name=body.display_name or patient.get("display_name"),
-        age=body.age if body.age is not None else patient.get("age"),
-        gender=body.gender or patient.get("gender") or "unknown",
-        aadhaar_last4=last4,
-        preferred_language=body.language,
-        dialect_hint=body.dialect_hint,
-    )
-    session["collected_fields"] = fields.model_dump()
-    session["language"] = body.language
-    session["dialect_hint"] = body.dialect_hint
-    session["audio_consent"] = body.audio_consent
-    session["aadhaar_hash"] = hashed
-    session["started_at"] = datetime.now(UTC).isoformat()
-    store.save_session(session)
-    token = create_patient_token(session["id"], patient["id"])
+        session["collected_fields"] = fields.model_dump()
+        session["language"] = body.language
+        session["dialect_hint"] = body.dialect_hint
+        session["audio_consent"] = body.audio_consent
+        session["aadhaar_hash"] = hashed
+        session["started_at"] = datetime.now(UTC).isoformat()
+        store.save_session(session)
+        token = create_patient_token(session["id"], patient["id"])
+    except ApiException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise ApiException(
+            503,
+            "SESSION_START_FAILED",
+            "Could not start your session. Please try again in a moment.",
+            details={"reason": str(exc)[:400]},
+        ) from exc
 
     name = fields.display_name or "there"
     if returning and prior_count:
@@ -146,8 +160,8 @@ def start_session(body: StartSessionBody) -> dict:
         }
     ai_message = greeting.get(body.language.split("-")[0], greeting["en"])
     return {
-        "session_id": session["id"],
-        "patient_id": patient["id"],
+        "session_id": str(session["id"]),
+        "patient_id": str(patient["id"]),
         "token": token,
         "language": lang.model_dump(),
         "ai_message": ai_message,

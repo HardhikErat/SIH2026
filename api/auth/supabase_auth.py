@@ -16,13 +16,15 @@ Role = Literal["patient", "doctor", "admin"]
 def create_patient_token(session_id: str, patient_id: str) -> str:
     now = datetime.now(UTC)
     payload = {
-        "sub": patient_id,
-        "sid": session_id,
+        "sub": str(patient_id),
+        "sid": str(session_id),
         "role": "patient",
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(hours=8)).timestamp()),
     }
-    return jwt.encode(payload, settings.session_secret, algorithm="HS256")
+    token = jwt.encode(payload, settings.session_secret, algorithm="HS256")
+    # python-jose may return bytes on some versions — JSON responses need str
+    return token.decode("utf-8") if isinstance(token, (bytes, bytearray)) else str(token)
 
 
 def decode_token(token: str) -> dict[str, Any]:

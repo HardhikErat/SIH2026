@@ -37,6 +37,8 @@ app.include_router(metrics.router, prefix=PREFIX, tags=["metrics"])
 
 @app.exception_handler(Exception)
 async def unhandled(_request: Request, exc: Exception) -> JSONResponse:
+    import logging
+
     from fastapi import HTTPException
 
     if isinstance(exc, HTTPException):
@@ -47,9 +49,16 @@ async def unhandled(_request: Request, exc: Exception) -> JSONResponse:
             status_code=exc.status_code,
             content={"error": {"code": "HTTP_ERROR", "message": str(detail), "details": {}}},
         )
+    logging.getLogger("api").exception("Unhandled server error")
     return JSONResponse(
         status_code=500,
-        content={"error": {"code": "INTERNAL", "message": "Server error. Your answers are saved.", "details": {}}},
+        content={
+            "error": {
+                "code": "INTERNAL",
+                "message": "Server error. Your answers are saved.",
+                "details": {"reason": str(exc)[:400]},
+            }
+        },
     )
 
 

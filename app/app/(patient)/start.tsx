@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Switch, Text, View, TextInput, Pressable } from 'react-native';
-import { api } from '../../shared/api/client';
+import { api, ApiError } from '../../shared/api/client';
 import { AppHeader } from '../../shared/components/AppHeader';
 import { Card } from '../../shared/components/Card';
 import { LanguagePicker } from '../../shared/components/LanguagePicker';
@@ -72,7 +72,12 @@ export default function PatientEntry() {
       speak(res.ai_message, language);
       router.push(`/(patient)/intake/${res.session_id}`);
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Could not start session.');
+      if (e instanceof ApiError) {
+        const reason = typeof e.details?.reason === 'string' ? e.details.reason : '';
+        setFormError(reason ? `${e.message} (${reason})` : e.message);
+      } else {
+        setFormError(e instanceof Error ? e.message : 'Could not start session.');
+      }
     } finally {
       setLoading(false);
     }
